@@ -147,9 +147,7 @@ workers.
 
 Use `basicAuth` for HTTP basic authentication. The browser answers a `401`
 challenge from the origin of `app.url`, and from each origin in
-`credentialOrigins`. WebKit answers any origin when one of those is on a
-default port, such as an `https://` URL with no port, or has an IPv6 host.
-Declare the password under `secrets` and pass `secrets.get(name)`:
+`credentialOrigins`. Declare the password under `secrets` and pass `secrets.get(name)`:
 
 ```ts title="e2e.config.ts"
 import type { E2EConfig } from 'e2e';
@@ -195,7 +193,7 @@ export default {
   targets: [
     { name: 'desktop', engine: web(), app },
     { name: 'tablet', engine: web({ viewport: { width: 820, height: 1180 } }), app },
-    { name: 'phone', engine: web({ browser: 'webkit', viewport: { width: 390, height: 844 } }), app },
+    { name: 'phone', engine: web({ browser: 'firefox', viewport: { width: 390, height: 844 } }), app },
   ],
 } satisfies E2EConfig;
 ```

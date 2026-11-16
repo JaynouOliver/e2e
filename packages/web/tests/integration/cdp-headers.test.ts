@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, it } from 'vitest';
-import { connectCdp } from '../../src/browser-connection.ts';
+import { connectBidiOverCdp } from '../../src/driver/launch.ts';
 import { closeRemoteChrome, launchRemoteChrome } from '../helpers/cdp-host.ts';
 
 /** A TCP listener exposes a numeric port rather than a pipe path. */
@@ -27,7 +27,7 @@ async function close(server: Server): Promise<void> {
   await new Promise<void>((resolve, reject) => server.close((cause) => cause ? reject(cause) : resolve()));
 }
 
-it('sends authorization during CDP discovery without adding it to page requests', async () => {
+it('sends the headers with the CDP discovery, and never with the page\'s requests', async () => {
   const remote = await launchRemoteChrome();
   const handshakeHeaders: (string | undefined)[] = [];
   const pageHeaders: (string | undefined)[] = [];
@@ -45,12 +45,11 @@ it('sends authorization during CDP discovery without adding it to page requests'
 
   try {
     const url = await listen(server);
-    const browser = await connectCdp({ endpoint: `${url}/devtools`, headers: { Authorization: 'Bearer synthetic-token' } }, 5_000);
+    const browser = await connectBidiOverCdp({ endpoint: `${url}/devtools`, headers: { Authorization: 'Bearer synthetic-token' } }, 5_000, new AbortController().signal);
 
     try {
-      const page = await (await browser.newContext()).newPage();
-      await page.goto(`${url}/app`);
-      expect(await page.title()).toBe('Test app');
+      const { context } = await browser.connection.send('browsingContext.create', { type: 'tab' });
+      await browser.connection.send('browsingContext.navigate', { context, url: `${url}/app`, wait: 'complete' });
       expect(handshakeHeaders).toEqual(['Bearer synthetic-token']);
       expect(pageHeaders.length).toBeGreaterThan(0);
       expect(pageHeaders.every((header) => header === undefined)).toBe(true);
@@ -66,24 +65,22 @@ it('sends authorization during CDP discovery without adding it to page requests'
 it.each([
   'Unauthorized',
   'Authorization Bearer synthetic-token, token synthetic-token',
-])('sanitizes rejected WebSocket upgrades with reason %s', async (reason) => {
+])('sends the headers with the WebSocket upgrade, and keeps them out of its rejection %s', async (reason) => {
+  const upgradeHeaders: (string | undefined)[] = [];
   const server = createServer();
-  server.on('upgrade', (_request, socket) => {
+  server.on('upgrade', (request, socket) => {
+    upgradeHeaders.push(request.headers.authorization);
     socket.end(`HTTP/1.1 401 ${reason}\r\nContent-Length: 0\r\n\r\n`);
   });
 
   try {
     const endpoint = (await listen(server)).replace('http:', 'ws:');
-
-    try {
-      await connectCdp({ endpoint, headers: { Authorization: 'Bearer synthetic-token' } }, 5_000);
-      expect.unreachable('the server rejected the WebSocket upgrade');
-    } catch (cause) {
-      if (!(cause instanceof Error)) throw cause;
-      expect(cause.message).toBe('CDP connection failed; check the endpoint, handshake headers, and connection timeout');
-      expect(cause.stack).not.toContain('synthetic-token');
-      expect(cause.cause).toBeUndefined();
-    }
+    const failure = await connectBidiOverCdp({ endpoint, headers: { Authorization: 'Bearer synthetic-token' } }, 5_000, new AbortController().signal).catch((error: unknown) => error);
+    expect(upgradeHeaders.length).toBeGreaterThan(0);
+    expect(upgradeHeaders.every((header) => header === 'Bearer synthetic-token')).toBe(true);
+    expect(failure).toMatchObject({ code: 'ENGINE_FAILURE', message: 'BiDi attach over CDP failed; check the endpoint, handshake headers, and connection timeout' });
+    expect((failure as Error).stack).not.toContain('synthetic-token');
+    expect((failure as Error).cause).toBeUndefined();
   } finally {
     await close(server);
   }

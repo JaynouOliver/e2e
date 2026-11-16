@@ -166,6 +166,22 @@ describe('operations on a hung page', () => {
     expect(negated.error).toMatchObject({ code: 'OPERATION_TIMEOUT' });
   });
 
+  it('fails a class assertion the deadline cut a later read of short with what the read before saw', async () => {
+    await start();
+    const expectation = browserExpectation();
+    let reads = 0;
+    const card = {
+      count: async () => 1,
+      getAttribute: async () => {
+        reads += 1;
+        if (reads > 1) await new Promise((resolve) => setTimeout(resolve, ACTION_TIMEOUT_MS));
+        return 'card active';
+      },
+    } as unknown as Locator;
+    const failed = await bounded(() => expectation.toHaveClass(card, 'card inactive', { timeout: BUDGET_MS }));
+    expect(failed.error).toMatchObject({ code: 'ASSERTION_FAILED', message: expect.stringContaining('observed: class "card active"') });
+  });
+
   it('times out a navigation to a server that never answers', async () => {
     await start();
     const open = await bounded(() => engine.session!.open!(`${origin}/never`, operation()));

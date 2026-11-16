@@ -12,8 +12,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { EngineCleanupContext, EngineFixtureContext, EngineHandle, EngineSnapshot, OperationContext, SemanticNode } from '@e2e-dev/core/engine';
-import { web, type Browser } from '../../src/index.ts';
+import type { Browser } from '../../src/index.ts';
 import { ignoreTrace, noSecrets } from '../helpers/secrets.ts';
+import { onFirefox, testWeb } from '../helpers/web-session.ts';
 
 const PAGES: Readonly<Record<string, string>> = {
   '/opener': `<!doctype html><title>Opener</title><h1>Opener</h1>
@@ -22,10 +23,11 @@ const PAGES: Readonly<Record<string, string>> = {
     <button onclick="const tab = window.open('', '_blank'); tab.document.write('<title>Written</title><p>Code TAB-88421</p>'); tab.document.close();">Write tab</button>
     <a href="/slow" target="_blank">Open slow</a>
     <a href="/hang" target="_blank">Open hang</a>
+    <button onclick="window.open('/hang', '_blank')">Open hang window</button>
     <a href="/no-content" target="_blank">Open nothing</a>
     <a href="mailto:help@example.com" target="_blank">Email us</a>
     <a href="/export" target="_blank">Export</a>
-    <button onclick="const tab = window.open('/popup', '_blank'); setTimeout(() => tab.close(), 400);">Open briefly</button>`,
+    <button onclick="window.open('/popup', '_blank')">Open closable</button>`,
   '/popup': `<!doctype html><title>Popup</title><h1>Popup</h1>
     <button onclick="window.close()">Close me</button>
     <button onclick="window.open('/nested', '_blank')">Open nested</button>
@@ -102,7 +104,7 @@ describe('tabs', () => {
 
   /** Runs `body` on one engine in a running attempt opened at `/opener`, with the `browser` fixture. */
   async function withAttempt(body: (engine: EngineHandle, browser: Browser) => Promise<void>): Promise<void> {
-    const engine = web({});
+    const engine = testWeb();
     await engine.init!({
       runId: 'run-tabs', targetName: 'web', projectRoot: process.cwd(),
       app: { site: '127.0.0.1' }, env: {}, headed: false,
@@ -153,6 +155,25 @@ describe('tabs', () => {
     return snapshot!;
   }
 
+  /**
+   * A `noopener` tab (a `target="_blank"` link) whose first response never comes stalls Chromium's BiDi mapper
+   * (https://crbug.com/372842894): it holds every message after the tab's `contextCreated` until that response arrives.
+   * The tap itself stalls, and the opener answers once the response ends.
+   */
+  async function stalledOnChromium(engine: EngineHandle, browser: Browser): Promise<void> {
+    await expect(browser.waitForPopup(() => tap(engine, 'Open hang'), { timeout: 1_000 })).rejects.toMatchObject({
+      code: 'ACTION_FAILED',
+      message: 'browser.waitForPopup exceeded its timeout of 1000ms',
+    });
+    let answered = false;
+    const title = browser.title().finally(() => { answered = true; });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(answered).toBe(false);
+    for (const response of hanging) response.end('<title>Late</title>');
+    hanging.clear();
+    expect(await title).toBe('Opener');
+  }
+
   it('a tab the app opens stays in the background until it is switched to, and its close shows its opener', async () => {
     await withAttempt(async (engine) => {
       await tap(engine, 'Open window');
@@ -182,17 +203,20 @@ describe('tabs', () => {
     });
   });
 
-  it('waitForPopup names the page a tab could not load when its time runs out, and the opener still answers', async () => {
-    await withAttempt(async (engine, browser) => {
-      await expect(browser.waitForPopup(() => tap(engine, 'Open hang'), { timeout: 1_000 })).rejects.toMatchObject({
-        code: 'ACTION_FAILED',
-        message: `the tab the app opened did not load ${url}/hang within 1000ms`,
+  for (const trigger of ['Open hang window', 'Open hang']) {
+    it(`waitForPopup names the page a tab could not load when its time runs out, and the opener still answers (${trigger})`, async () => {
+      await withAttempt(async (engine, browser) => {
+        if (trigger === 'Open hang' && !onFirefox) return stalledOnChromium(engine, browser);
+        await expect(browser.waitForPopup(() => tap(engine, trigger), { timeout: 1_000 })).rejects.toMatchObject({
+          code: 'ACTION_FAILED',
+          message: `the tab the app opened did not load ${url}/hang within 1000ms`,
+        });
+        expect(await browser.title()).toBe('Opener');
+        for (const response of hanging) response.destroy();
+        hanging.clear();
       });
-      expect(await browser.title()).toBe('Opener');
-      for (const response of hanging) response.destroy();
-      hanging.clear();
     });
-  });
+  }
 
   it('a tab whose opener closed itself before the tab loaded joins the tabs', async () => {
     await withAttempt(async (engine, browser) => {
@@ -224,8 +248,10 @@ describe('tabs', () => {
 
   it('reads in flight when the app closes the shown tab repeat on the tab shown next', async () => {
     await withAttempt(async (engine, browser) => {
-      await browser.waitForPopup(() => tap(engine, 'Open briefly'));
+      await browser.waitForPopup(() => tap(engine, 'Open closable'));
       await screenAt(engine, '/popup');
+      // The tab closes itself once it is shown and the reads below are running, not on a timer from its opening.
+      await browser.evaluate('() => { setTimeout(() => window.close(), 300); return null; }');
       // A retryable stale read is the runner's to repeat, as the locator engine does.
       const repeated = async <T>(read: () => Promise<T>): Promise<T | undefined> => {
         try {

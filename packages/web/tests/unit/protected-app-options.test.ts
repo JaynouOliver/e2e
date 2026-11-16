@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { secrets } from 'e2e';
 import { web, type WebOptions } from '../../src/index.ts';
-import { credentialOrigins, httpCredentials } from '../../src/protected-app.ts';
+import { credentialed, credentialOrigins, httpCredentials } from '../../src/protected-app.ts';
 
 describe('web({ headers })', () => {
   it('rejects a header name outside the token grammar as INVALID_CONFIG', () => {
@@ -143,10 +143,10 @@ describe('web({ locale, timezoneId })', () => {
 });
 
 describe('web({ colorScheme, reducedMotion })', () => {
-  it('accepts every value the browser emulates, on a persistent context too', () => {
+  it('accepts every value the browser emulates, on an attached browser too', () => {
     for (const colorScheme of ['light', 'dark', 'no-preference'] as const) expect(() => web({ colorScheme })).not.toThrow();
     for (const reducedMotion of ['reduce', 'no-preference'] as const) expect(() => web({ reducedMotion })).not.toThrow();
-    const connect = { cdpEndpoint: () => 'ws://127.0.0.1:9222', reconnectEndpoint: () => 'ws://127.0.0.1:9222' };
+    const connect = { cdpEndpoint: () => 'ws://127.0.0.1:9222' };
     expect(() => web({ connect, colorScheme: 'dark', reducedMotion: 'reduce' })).not.toThrow();
   });
 
@@ -229,8 +229,8 @@ describe('web() option keys', () => {
 
   it('rejects an unknown key inside connect and basicAuth', () => {
     const cdpEndpoint = () => 'ws://127.0.0.1:9222';
-    expect(() => web({ connect: { cdpEndpoint, reconectEndpoint: cdpEndpoint } } as unknown as Parameters<typeof web>[0])).toThrow(
-      refused('web({ connect }) has unknown key "reconectEndpoint"; did you mean "reconnectEndpoint"?'),
+    expect(() => web({ connect: { cdpEndpoint, cdpEndpont: cdpEndpoint } } as unknown as Parameters<typeof web>[0])).toThrow(
+      refused('web({ connect }) has unknown key "cdpEndpont"; did you mean "cdpEndpoint"?'),
     );
     expect(() => web({ basicAuth: { username: 'u', password: 'p', usernme: 'u' } } as unknown as Parameters<typeof web>[0])).toThrow(
       refused('web({ basicAuth }) has unknown key "usernme"; did you mean "username"?'),
@@ -244,40 +244,26 @@ describe('web() option keys', () => {
 
 describe('basic-auth credentials', () => {
   const app = 'http://127.0.0.1:3000';
-  const notASecret = async (): Promise<string> => {
-    throw new Error('not a secret');
-  };
-
-  it('scopes one entry to each origin: the app\'s, then the extras, normalized', async () => {
-    const origins = credentialOrigins(app, ['https://API.example.com:443/', 'http://127.0.0.1:3000']);
-    const credentials = await httpCredentials({ username: 'ada', password: 'plain-value' }, origins, 'chromium', notASecret);
-    expect(credentials).toEqual([
-      { username: 'ada', password: 'plain-value', origin: app },
-      { username: 'ada', password: 'plain-value', origin: 'https://api.example.com' },
-    ]);
+    it('normalizes the origins: the app\'s, then the extras', () => {
+    expect([...credentialOrigins(app, ['https://API.example.com:443/', 'http://127.0.0.1:3000'])]).toEqual([app, 'https://api.example.com']);
   });
 
-  it('goes unscoped on WebKit when an origin is on a default port or an IPv6 host, which WebKit cannot match', async () => {
-    const plain = { username: 'ada', password: 'plain-value' };
-    for (const extra of ['https://api.example.com', 'http://[::1]:3000']) {
-      expect(await httpCredentials(plain, credentialOrigins(app, [extra]), 'webkit', notASecret)).toEqual([plain]);
+  it('answers a challenge only from one of the origins, by exact scheme, host, and port', () => {
+    const origins = credentialOrigins(app, ['https://api.example.com']);
+    expect(credentialed('http://127.0.0.1:3000/login', origins)).toBe(true);
+    expect(credentialed('https://api.example.com:443/v1', origins)).toBe(true);
+    for (const url of ['http://127.0.0.1:3001/', 'https://www.api.example.com/', 'http://api.example.com/', 'not a url']) {
+      expect(credentialed(url, origins)).toBe(false);
     }
-    expect(await httpCredentials(plain, credentialOrigins(app, ['http://localhost:4000']), 'webkit', notASecret)).toEqual([
-      { ...plain, origin: app },
-      { ...plain, origin: 'http://localhost:4000' },
-    ]);
-    expect(await httpCredentials(plain, credentialOrigins('https://example.com', undefined), 'firefox', notASecret)).toEqual([
-      { ...plain, origin: 'https://example.com' },
-    ]);
   });
 
   it('registers the Authorization credential a secret password becomes, padded and not, for redaction', async () => {
     const asked: { name: string; derived: readonly string[] }[] = [];
-    const credentials = await httpCredentials({ username: 'ada', password: secrets.get('stagingPassword') }, credentialOrigins(app, undefined), 'chromium', async (secret, options) => {
+    const credentials = await httpCredentials({ username: 'ada', password: secrets.get('stagingPassword') }, async (secret, options) => {
       asked.push({ name: secret.name, derived: (await options?.derived?.('pa55word!')) ?? [] });
       return 'pa55word!';
     });
-    expect(credentials).toEqual([{ username: 'ada', password: 'pa55word!', origin: app }]);
+    expect(credentials).toEqual({ username: 'ada', password: 'pa55word!' });
     const encoded = Buffer.from('ada:pa55word!').toString('base64');
     expect(encoded.endsWith('=')).toBe(true);
     expect(asked).toEqual([{ name: 'stagingPassword', derived: [encoded, encoded.replace(/=+$/, '')] }]);

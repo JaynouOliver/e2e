@@ -22,7 +22,7 @@ export const migrationPrompt = `Migrate this project's Playwright tests to e2e, 
 11. Summarize which tests moved, which stayed in Playwright, and why.`;
 
 e2e can run beside Playwright in one project while you move tests one file
-at a time. `@e2e-dev/web` brings its own pinned `playwright-core`, so your
+at a time. `@e2e-dev/web` does not use Playwright, so your
 `@playwright/test` version stays yours. e2e reads `e2e.config.ts` and finds
 `tests/**/*.e2e.ts` by default, so keep the two file patterns apart.
 
@@ -293,7 +293,7 @@ purpose. Use the workaround, or keep the test in Playwright.
 | `test.setTimeout()`, `test.slow()`, `test.fixme()`, `test.describe.only()`, `test.fail()` on a describe | `{ timeout }` or `{ skip: 'reason' }` on the test or group; `test.only` and `test.fail()` on each test |
 | `failOnFlakyTests`, `use.navigationTimeout`, `--timeout`, `--quiet` | `run.summary.flaky` in `report.json`; `browser.goto(url, { timeout })`; `timeout` in the config |
 | The `blob` reporter and `merge-reports` | One report for each shard |
-| The Playwright Docker image | The image for the `playwright-core` version `@e2e-dev/web` pins, or `npx @e2e-dev/web install chromium --with-deps` |
+| The Playwright Docker image | Any Node.js image, with `npx @e2e-dev/web install chromium --with-deps` |
 | `test.use({ ... })` in a file or describe | Runner options on the group, engine options on a target, `browser.setViewport` at runtime |
 | `projects[].dependencies`, `teardown` | A top-level `test.setup` for sign-in; a script around the run |
 | `page.pause()` | `--step --headed` holds each step until a key |
@@ -364,9 +364,9 @@ purpose. Use the workaround, or keep the test in Playwright.
 - Sessions last one run. `test.setup` saves state under a name and
   `{ session }` restores it. The file is encrypted and deleted at cleanup,
   so there is no `.auth/user.json` to reuse.
-- Tests get no raw `Page`, because nothing on one is recorded, redacted, or
-  masked. `surfaceOf(engine)` is for
-  [custom executors](/executors#driving-the-page-yourself), not test code.
+- Tests get no raw `Page`. The engine drives the browser over WebDriver
+  BiDi, not Playwright, and nothing on a raw page would be recorded,
+  redacted, or masked.
 
 ## Defaults that differ
 

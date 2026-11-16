@@ -160,6 +160,8 @@ export interface FakeEngineBehavior {
   onCapture?(): void | Promise<void>;
   /** Contributes a `gadget` fixture exercising every fixture-context facility. */
   fixtures?: boolean;
+  /** The platform the engine declares; default none, so its target names one. */
+  platform?: string;
   /** The secrets the engine declares, which `onStartAttempt` may resolve through its context. */
   secrets?: readonly Secret[];
 }
@@ -252,6 +254,7 @@ export function createFakeEngine(behavior: FakeEngineBehavior = {}): FakeEngineH
     name: 'fake',
     version: '1.0.0',
     spiVersion: ENGINE_SPI_VERSION,
+    ...(behavior.platform === undefined ? {} : { platform: behavior.platform }),
     async init(info) {
       events.push('init');
       inits.push(info);

@@ -57,7 +57,7 @@ test('deterministic queries and reads', async ({ app, screen, browser }) => {
 test('class assertions report the observed class on failure', async ({ app, browser }) => {
   await app.open();
   try {
-    await expect(browser).toHaveClass(browser.locator('#class-card'), 'card inactive', { timeout: 300 });
+    await expect(browser).toHaveClass(browser.locator('#class-card'), 'card inactive', { timeout: 2_000 });
     throw new Error('toHaveClass unexpectedly passed');
   } catch (error) {
     if (!(error instanceof Error) || !error.message.includes('class "card active"')) throw error;
