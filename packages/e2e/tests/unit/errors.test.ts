@@ -167,9 +167,10 @@ describe('sanitizeText', () => {
     expect(sanitizeText('ok 😀 fine')).toBe('ok 😀 fine');
   });
 
-  it('replaces carriage returns, which sanitizeRecordedText keeps', () => {
+  it('replaces carriage returns; sanitizeRecordedText keeps the one in a \\r\\n', () => {
     expect(sanitizeText('a\r\nb')).toBe('a\uFFFD\nb');
     expect(sanitizeRecordedText('a\r\nb\u0007\u000c\u000e\u001b[31mc')).toBe('a\r\nb\uFFFD\uFFFD\uFFFDc');
+    expect(sanitizeRecordedText('failed\rpassed\r\r\nend\r')).toBe('failed\uFFFDpassed\uFFFD\r\nend\uFFFD');
   });
 });
 

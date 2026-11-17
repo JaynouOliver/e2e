@@ -500,15 +500,16 @@ export function sanitizeText(text: string): string {
   return stripVTControlCharacters(text).replace(CONTROL_PATTERN, '\uFFFD');
 }
 
-/** C0/C1 control characters except tab, newline, and carriage return. */
+/** C0/C1 control characters except tab, newline, and a carriage return that starts a `\r\n`. */
 // oxlint-disable-next-line no-control-regex -- the control range is the point
-const RECORDED_CONTROL_PATTERN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g;
+const RECORDED_CONTROL_PATTERN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]|\r(?!\n)/g;
 
 /**
- * `sanitizeText` that keeps carriage returns, for text a file records (a
- * serialized error, the JUnit report), where `\r\n` is the text's own line
- * break. A terminal printer runs `sanitizeText` over it again, since a raw
- * `\r` there rewinds the line.
+ * `sanitizeText` that keeps `\r\n` line breaks, for text the run records:
+ * serialized errors and skip reasons, which reach report files, reporter
+ * events, and `openHost` callers. A lone `\r` still becomes U+FFFD, since on
+ * a terminal it rewinds the line and the text after it overwrites the text
+ * before.
  */
 export function sanitizeRecordedText(text: string): string {
   return stripVTControlCharacters(text).replace(RECORDED_CONTROL_PATTERN, '\uFFFD');
