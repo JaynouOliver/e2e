@@ -442,6 +442,19 @@ describe('project detection', () => {
     expect(gitlab.locate(dir).note).toBeUndefined();
   });
 
+  it.each([
+    ['items at the indentation of the key', 'stages:\n- build\n- test\n'],
+    ['a comment between the items', 'stages:\n  - build\n  # checks\n  - test\n'],
+    ['a blank line between the items', 'stages:\n  - build\n\n  - test\n'],
+    ['a flow list over several lines', 'stages: [\n  build,\n  test\n]\n'],
+    ['a spec header above it', 'spec:\n  inputs: {}\n---\nstages:\n  - build\n  - test\n'],
+  ])('reads the test stage from a stages list written with %s', (_layout, pipeline) => {
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), `${pipeline}build:\n  stage: build\n  script: [make]\n`);
+    expect(getCiService('gitlab').locate(dir).note).toBeUndefined();
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), `${pipeline.replace('test', 'deploy')}build:\n  stage: build\n  script: [make]\n`);
+    expect(getCiService('gitlab').locate(dir).note).toBe('The e2e jobs run in the test stage; add test to the stages in .gitlab-ci.yml');
+  });
+
   it('renames the jobs beside a pipeline that already has a job of one of their names', () => {
     writeFileSync(path.join(dir, '.gitlab-ci.yml'), 'e2e:\n  script: [npx cypress run]\n');
     expect(getCiService('gitlab').locate(dir)).not.toHaveProperty('jobSuffix');
