@@ -120,6 +120,15 @@ const NOT_ACTIONABLE_REASONS: ReadonlyMap<string, string | undefined> = new Map(
 ]);
 
 /**
+ * The snapshot warning agent-device 0.21.37 adds, word for word, when a
+ * capture could not place its window on the screen. It refuses its own ref
+ * actions on that capture with `window-origin-unknown`, but takes points a
+ * caller sends, so a gesture aimed from the capture's rects is checked here.
+ */
+export const ORIGIN_WARNING =
+  'This snapshot cannot establish the window origin on screen. Coordinate-derived element interactions are unavailable until a capture measures the viewport.';
+
+/**
  * What the iOS automation runner reported about itself, by the code
  * agent-device emits for it: `RUNNER_WEDGED` at the top level, `RUNNER_BUSY`
  * and `MAIN_THREAD_TIMEOUT` in `details.runnerErrorCode` under
