@@ -448,6 +448,7 @@ describe('project detection', () => {
     ['a blank line between the items', 'stages:\n  - build\n\n  - test\n'],
     ['a flow list over several lines', 'stages: [\n  build,\n  test\n]\n'],
     ['a spec header above it', 'spec:\n  inputs: {}\n---\nstages:\n  - build\n  - test\n'],
+    ['an alias to an anchored list', '.stages: &stages\n  - build\n  - test\nstages: *stages\n'],
   ])('reads the test stage from a stages list written with %s', (_layout, pipeline) => {
     writeFileSync(path.join(dir, '.gitlab-ci.yml'), `${pipeline}build:\n  stage: build\n  script: [make]\n`);
     expect(getCiService('gitlab').locate(dir).note).toBeUndefined();

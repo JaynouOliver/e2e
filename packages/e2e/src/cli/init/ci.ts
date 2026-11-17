@@ -8,7 +8,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { isMap, isNode, isScalar, isSeq, parseAllDocuments, parseDocument, visit, type Document, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
+import { isAlias, isMap, isNode, isScalar, isSeq, parseAllDocuments, parseDocument, visit, type Document, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
 import { resolvePlatform, targetName } from '@e2e-dev/core/lib/config/targets';
 import { isLoopbackHost } from '@e2e-dev/core/lib/internal/urls';
 import type { PackageManager } from '../../internal/package-manager.ts';
@@ -147,7 +147,12 @@ const GITLAB_JOBS = ['e2e-web', '.e2e-mobile', 'e2e-ios', 'e2e-android'] as cons
 
 /** The names a pipeline's top-level `stages:` lists, however the list is laid out; undefined without one. */
 function gitlabStages(pipeline: string): string[] | undefined {
-  const stages = parseAllDocuments(pipeline).map((document) => document.get('stages')).find(isSeq);
+  const stages = parseAllDocuments(pipeline)
+    .map((document) => {
+      const node = document.get('stages', true);
+      return isAlias(node) ? node.resolve(document) : node;
+    })
+    .find(isSeq);
   return stages?.items.map((item) => String(isScalar(item) ? item.value : item));
 }
 
