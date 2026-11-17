@@ -3,7 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
+import { CI_IDS } from '../../src/cli/init/choices.ts';
 import {
+  CI_SERVICES,
   ciJobs,
   configStartsApp,
   configTargets,
@@ -374,6 +376,12 @@ describe('the pinned actions', () => {
         .filter(([action, pin]) => pins.has(action) && pins.get(action) !== pin)
         .map(([, pin]) => `${path.relative(repository, file)}: ${pin}`));
     expect(mismatches).toEqual([]);
+  });
+});
+
+describe('CI_SERVICES', () => {
+  it('has one service per --ci choice, in the order the flag lists them', () => {
+    expect(CI_SERVICES.map((service) => service.id)).toEqual(CI_IDS);
   });
 });
 

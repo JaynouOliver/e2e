@@ -13,10 +13,8 @@ import { resolvePlatform, targetName } from '@e2e-dev/core/lib/config/targets';
 import { isLoopbackHost } from '@e2e-dev/core/lib/internal/urls';
 import type { PackageManager } from '../../internal/package-manager.ts';
 import type { E2EConfig } from '../../run-types.ts';
+import type { CiId } from './choices.ts';
 import { GATEWAYS, type GatewayPreset } from './gateways.ts';
-
-export type CiId = 'github-actions' | 'gitlab';
-export type CiChoice = CiId | 'none';
 
 /** Where a service's pipeline goes, relative to the repository root. */
 export interface CiFile {
