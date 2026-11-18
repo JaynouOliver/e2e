@@ -183,9 +183,20 @@ export function message(cause: unknown): string {
   return text.replace(ANSI_PATTERN, '');
 }
 
-/** Constrains a caller-supplied artifact label to a safe filename. */
+const MAX_FILENAME_LENGTH = 64;
+
+/** A file extension: a final dot and 1 to 10 letters or digits. Anything longer is the dot in a label. */
+const FILE_EXTENSION = /\.[A-Za-z0-9]{1,10}$/;
+
+/**
+ * Constrains a caller-supplied artifact label to a safe filename. A name over
+ * the length bound is cut ahead of its extension, so a download keeps its type.
+ */
 export function sanitizeFilename(name: string): string {
-  return name.replaceAll(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'artifact';
+  const safe = name.replaceAll(/[^A-Za-z0-9._-]/g, '_');
+  if (safe.length <= MAX_FILENAME_LENGTH) return safe || 'artifact';
+  const extension = FILE_EXTENSION.exec(safe)?.[0] ?? '';
+  return safe.slice(0, MAX_FILENAME_LENGTH - extension.length) + extension;
 }
 
 export function isPwTimeout(cause: unknown): boolean {

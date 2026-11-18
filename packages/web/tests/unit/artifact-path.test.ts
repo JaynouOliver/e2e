@@ -41,6 +41,24 @@ describe('sanitizeFilename', () => {
     }
     expect(sanitizeFilename('')).toBe('artifact');
   });
+
+  it('cuts a long name ahead of its extension', () => {
+    const cut = sanitizeFilename('Statement_of_Account_2026-10-01_to_2026-10-31_ACME_Holdings_Ltd.pdf');
+    expect(cut).toBe('Statement_of_Account_2026-10-01_to_2026-10-31_ACME_Holdings_.pdf');
+    expect(cut).toHaveLength(64);
+    expect(sanitizeFilename(`${'x'.repeat(300)}.tar.gz`)).toBe(`${'x'.repeat(61)}.gz`);
+    expect(sanitizeFilename(`${'x'.repeat(60)}.csv`)).toBe(`${'x'.repeat(60)}.csv`);
+    expect(sanitizeFilename(`${'x'.repeat(61)}.csv`)).toBe(`${'x'.repeat(60)}.csv`);
+    expect(sanitizeFilename(`${'x'.repeat(80)}.${'A'.repeat(10)}`)).toBe(`${'x'.repeat(53)}.${'A'.repeat(10)}`);
+  });
+
+  it('cuts a long name with no extension at the bound', () => {
+    expect(sanitizeFilename('x'.repeat(100))).toBe('x'.repeat(64));
+    expect(sanitizeFilename(`${'x'.repeat(80)}.`)).toBe('x'.repeat(64));
+    expect(sanitizeFilename(`${'x'.repeat(80)}.${'a'.repeat(11)}`)).toBe('x'.repeat(64));
+    expect(sanitizeFilename(`${'x'.repeat(60)} report.final version 2026`)).toBe(`${'x'.repeat(60)}_rep`);
+    expect(sanitizeFilename(`${'x'.repeat(80)}.r\u00e9sum\u00e9`)).toBe('x'.repeat(64));
+  });
 });
 
 describe('artifact paths', () => {
