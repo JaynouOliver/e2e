@@ -25,20 +25,36 @@ function describeMatcher(matcher: AsymmetricMatcher): string {
   return `${matcher.toString()} ${format(sample)}`;
 }
 
+/**
+ * A value as a failure prints it: JSON for what JSON can hold, and a form of
+ * its own for what it cannot (`-0`, `NaN`, `undefined`, a bigint, a `Map`).
+ */
 function format(value: unknown): string {
+  try {
+    return print(value, []);
+  } catch {
+    return String(value);
+  }
+}
+
+function print(value: unknown, ancestors: readonly object[]): string {
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'bigint') return `${value}n`;
   if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`;
-  if (typeof value === 'symbol') return value.toString();
+  if (typeof value !== 'object' || value === null) return Object.is(value, -0) ? '-0' : String(value);
   if (isAsymmetric(value)) return describeMatcher(value);
-  if (value instanceof RegExp) return String(value);
-  try {
-    const json = JSON.stringify(value, (_key, nested: unknown) => (isAsymmetric(nested) ? describeMatcher(nested) : nested));
-    if (json !== undefined) return json;
-  } catch {
-    // fall through
-  }
-  return String(value);
+  if (types.isRegExp(value) || types.isNativeError(value)) return String(value);
+  if (types.isBoxedPrimitive(value)) return print(value.valueOf(), ancestors);
+  if (ancestors.includes(value)) return '[Circular]';
+  const path = [...ancestors, value];
+  const nested = (item: unknown): string => print(item, path);
+  const toJSON: unknown = Reflect.get(value, 'toJSON');
+  const json: unknown = typeof toJSON === 'function' ? toJSON.call(value) : value;
+  if (json !== value) return nested(json);
+  if (Array.isArray(value)) return `[${Array.from(value, nested).join(',')}]`;
+  if (types.isMap(value)) return `Map {${Array.from(value, ([key, item]) => `${nested(key)} => ${nested(item)}`).join(', ')}}`;
+  if (types.isSet(value)) return `Set {${Array.from(value, nested).join(', ')}}`;
+  return `{${Object.entries(value).map(([key, item]) => `${JSON.stringify(key)}:${nested(item)}`).join(',')}}`;
 }
 
 class ValueExpectationImpl<T> implements ValueExpectation<T> {

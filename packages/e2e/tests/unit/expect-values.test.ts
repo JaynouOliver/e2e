@@ -23,6 +23,42 @@ describe('value matchers', () => {
     failsWith(() => e2eExpect(0).toBe(-0 as never), /to be/);
   });
 
+  it('prints values JSON cannot hold as themselves', () => {
+    const message = (fn: () => void): string => {
+      try {
+        fn();
+      } catch (error) {
+        return (error as Error).message;
+      }
+      throw new Error('expected assertion to fail');
+    };
+    vexpect(message(() => e2eExpect(-0).toBe(0))).toBe('expected -0 to be 0');
+    vexpect(message(() => e2eExpect(Number.NaN).toBe(0))).toBe('expected NaN to be 0');
+    vexpect(message(() => e2eExpect<unknown>(1 / 0).toEqual(null))).toBe('expected Infinity to equal null');
+    vexpect(message(() => e2eExpect([undefined, -0]).toEqual([null, 0]))).toBe('expected [undefined,-0] to equal [null,0]');
+    vexpect(message(() => e2eExpect({ id: 1n }).toEqual({ id: 2n }))).toBe('expected {"id":1n} to equal {"id":2n}');
+    vexpect(message(() => e2eExpect(new Map([['a', { n: 1 }]])).toEqual(new Map([['a', { n: 2 }]])))).toBe(
+      'expected Map {"a" => {"n":1}} to equal Map {"a" => {"n":2}}',
+    );
+    vexpect(message(() => e2eExpect(new Set([1])).toEqual(new Set([2])))).toBe('expected Set {1} to equal Set {2}');
+    vexpect(message(() => e2eExpect(new TypeError('boom')).toEqual(new Error('boom')))).toBe(
+      'expected TypeError: boom to equal Error: boom',
+    );
+    vexpect(message(() => e2eExpect({ at: new Date(0), n: new Number(1) }).toEqual({ at: 'never', n: e2eExpect.any(String) }))).toBe(
+      'expected {"at":"1970-01-01T00:00:00.000Z","n":1} to equal {"at":"never","n":Any<String>}',
+    );
+    const cyclic: { child?: unknown } = {};
+    cyclic.child = { parent: cyclic };
+    vexpect(message(() => e2eExpect(cyclic).toEqual({ child: 1 }))).toBe('expected {"child":{"parent":[Circular]}} to equal {"child":1}');
+    class Plain {
+      a = 1;
+      toJSON(): this {
+        return this;
+      }
+    }
+    vexpect(message(() => e2eExpect<unknown>(new Plain()).toEqual({ a: 2 }))).toBe('expected {"a":1} to equal {"a":2}');
+  });
+
   it('toEqual performs recursive structural equality', () => {
     e2eExpect({ a: [1, { b: 2 }] }).toEqual({ a: [1, { b: 2 }] });
     e2eExpect(new Map([['k', 1]])).toEqual(new Map([['k', 1]]));
