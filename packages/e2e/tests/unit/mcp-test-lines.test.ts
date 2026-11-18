@@ -158,6 +158,13 @@ describe('navigationLine', () => {
     expect(navigationLine('https://example.com/login', base)).toBe('await app.open("https://example.com/login");');
     expect(navigationLine('/forms', undefined)).toBe('await app.open("/forms");');
   });
+
+  it('keeps a URL as given when its path would open another URL', () => {
+    expect(navigationLine('http://127.0.0.1:4100//forms', base)).toBe('await app.open("http://127.0.0.1:4100//forms");');
+    expect(navigationLine('http://127.0.0.1:4100//', base)).toBe('await app.open("http://127.0.0.1:4100//");');
+    expect(navigationLine('/.//forms', base)).toBe('await app.open("/.//forms");');
+    expect(navigationLine('http://ada:pw@127.0.0.1:4100/forms', base)).toBe('await app.open("http://ada:pw@127.0.0.1:4100/forms");');
+  });
 });
 
 describe('SessionTestLines', () => {

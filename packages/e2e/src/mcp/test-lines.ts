@@ -24,6 +24,7 @@ import { isFailedResult } from '@e2e-dev/core/lib/agent/loop-guards';
 import { typedThroughKeyboard } from '@e2e-dev/core/lib/agent/primitives';
 import { SAMPLE_PREFIX } from '@e2e-dev/core/lib/agent/sample-files';
 import type { ScreenOutput } from '@e2e-dev/core/lib/agent/screen-update';
+import { appNavigation } from '@e2e-dev/core/lib/cache/route';
 import type { LocatorExpression, NodeRef, SemanticNode } from '@e2e-dev/core/lib/engine/surface';
 import { codedMessage, InfrastructureError } from '@e2e-dev/core/lib/internal/errors';
 import { collapseText } from '@e2e-dev/core/lib/internal/text';
@@ -501,13 +502,15 @@ export function nodeQueries(node: ExecutorNode): readonly LineQuery[] {
 /**
  * The `app.open` line for a navigation: a URL on the app's origin as its
  * path, so the line holds on the port the next run gets, the base URL itself
- * as `app.open()`, anything else as given.
+ * as `app.open()`, anything else as given, which covers a URL a recorded
+ * navigation keeps whole too (`appNavigation`).
  */
 export function navigationLine(url: string, base: { readonly href: string; readonly origin: string } | undefined): string {
   if (base !== undefined && URL.canParse(url, base.href)) {
-    const resolved = new URL(url, base.href);
-    if (resolved.href === base.href) return 'await app.open();';
-    if (resolved.origin === base.origin) return `await app.open(${JSON.stringify(`${resolved.pathname}${resolved.search}${resolved.hash}`)});`;
+    const resolved = new URL(url, base.href).href;
+    if (resolved === base.href) return 'await app.open();';
+    const path = appNavigation(resolved, base.origin);
+    if (path !== resolved) return `await app.open(${JSON.stringify(path)});`;
   }
   return `await app.open(${JSON.stringify(url)});`;
 }
