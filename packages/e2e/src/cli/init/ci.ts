@@ -83,22 +83,27 @@ const COMMAND_KEYS = new Set(['run', 'script', 'before_script', 'after_script'])
 const E2E_RUN = /(?:^|[\s;&|()'"`])e2e\s+run(?=$|[\s;&|()'"`])/u;
 
 /**
- * Whether a pipeline file runs `e2e run` in one of its commands. The words
- * in a YAML or shell comment, or in a step's name, run nothing.
+ * Whether a pipeline file runs `e2e run` in one of its commands, in any of
+ * its YAML documents: a GitLab pipeline with a `spec:` header keeps its jobs
+ * in the second. The words in a YAML or shell comment, or in a step's name,
+ * run nothing.
  */
 function runsE2E(pipeline: string): boolean {
   let runs = false;
-  visit(parseDocument(pipeline), {
-    Pair(_key, pair) {
-      if (!isScalar(pair.key) || !COMMAND_KEYS.has(String(pair.key.value)) || !isNode(pair.value)) return undefined;
-      visit(pair.value, {
-        Scalar(_index, command) {
-          runs ||= String(command.value).split('\n').some((line) => E2E_RUN.test(line.replace(/(?:^|\s)#.*$/u, '')));
-        },
-      });
-      return runs ? visit.BREAK : visit.SKIP;
-    },
-  });
+  for (const document of parseAllDocuments(pipeline)) {
+    visit(document, {
+      Pair(_key, pair) {
+        if (!isScalar(pair.key) || !COMMAND_KEYS.has(String(pair.key.value)) || !isNode(pair.value)) return undefined;
+        visit(pair.value, {
+          Scalar(_index, command) {
+            runs ||= String(command.value).split('\n').some((line) => E2E_RUN.test(line.replace(/(?:^|\s)#.*$/u, '')));
+          },
+        });
+        return runs ? visit.BREAK : visit.SKIP;
+      },
+    });
+    if (runs) break;
+  }
   return runs;
 }
 

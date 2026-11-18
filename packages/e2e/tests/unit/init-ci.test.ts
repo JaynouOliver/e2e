@@ -511,6 +511,15 @@ describe('project detection', () => {
     expect(gitlab.locate(dir)).toEqual({ file: '.gitlab-ci.yml', existing: true });
   });
 
+  it('counts a GitLab pipeline whose jobs follow a spec header as set up', () => {
+    const gitlab = getCiService('gitlab');
+    const header = 'spec:\n  inputs:\n    node:\n      default: "24"\n---\n';
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), `${header}e2e:\n  image: node:$[[ inputs.node ]]\n  script:\n    - npm ci\n    - npx e2e run\n`);
+    expect(gitlab.locate(dir)).toEqual({ file: '.gitlab-ci.yml', existing: true });
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), `${header}build:\n  script: [make]\n`);
+    expect(gitlab.locate(dir)).toMatchObject({ file: '.gitlab/e2e.gitlab-ci.yml', existing: false });
+  });
+
   it.each([
     ['24\n', '24'],
     ['v24.8.0', '24'],
