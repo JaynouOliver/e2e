@@ -28,7 +28,7 @@ const LINKABLE_TOKEN = /@[A-Za-z0-9]|#\d|\bGH-\d|:\/\/|\bwww\./i;
  * marker, or the first character of a heading, a list item, a thematic break,
  * or a setext underline.
  */
-const BLOCK_OPENER = /^(\d{1,9})([.)])(?=\s|$)|^[#+=_-]/;
+const BLOCK_OPENER = /^(\d{1,9})([.)])(?=\s|$)|^[#+=-]/;
 
 /**
  * Text safe inside a table cell, a list item, or at the start of a line: one
@@ -38,7 +38,7 @@ const BLOCK_OPENER = /^(\d{1,9})([.)])(?=\s|$)|^[#+=_-]/;
  * its own (a mention, an issue number, a URL) is shown as code, the one
  * rendering GitHub's autolink filters leave alone, so screen text from the
  * app under test cannot notify anyone or plant a link in a pull request
- * comment. An underscore stays: inside a word GitHub never reads it as
+ * comment. An underscore inside a word stays: there GitHub never reads it as
  * emphasis, and error codes are full of them.
  */
 export function cell(text: string, max = MAX_CELL_CHARS): string {
@@ -54,7 +54,7 @@ export function cell(text: string, max = MAX_CELL_CHARS): string {
 /** Inline markdown a token could open, escaped; angle brackets become entities. */
 function escapeInline(text: string): string {
   return text
-    .replace(/[\\`*[\]~|]/g, (char) => `\\${char}`)
+    .replace(/[\\`*[\]~|]|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, (char) => `\\${char}`)
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 }

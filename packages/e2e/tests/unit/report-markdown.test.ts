@@ -351,8 +351,8 @@ describe('renderMarkdownReport', () => {
 
   it('escapes what a test wrote, keeps it on one line, and keeps a link destination closed', () => {
     const hostile = named({
-      title: 'a | b <img src=x onerror=alert(1)> *c*',
-      file: 'tests/we|rd.e2e.ts',
+      title: 'a | b <img src=x onerror=alert(1)> *c* __proto__ _id and user_ café_rôle',
+      file: 'tests/__tests__/we|rd_flow.e2e.ts',
       status: 'failed',
       attempts: [
         attempt({
@@ -366,13 +366,13 @@ describe('renderMarkdownReport', () => {
       artifactsUrl: 'https://x.test/run (1)',
       sourceUrl: () => 'https://x.test/blob)<script>',
     });
-    expect(body).toContain('a \\| b &lt;img src=x onerror=alert(1)&gt; \\*c\\*');
+    expect(body).toContain('a \\| b &lt;img src=x onerror=alert(1)&gt; \\*c\\* \\_\\_proto\\_\\_ \\_id and user\\_ café_rôle');
     // The canonical sanitizer drops color sequences and marks a control character, as the terminal does.
     expect(body).toContain('line one line two red �\\`tick\\`');
     // A backtick in a label lengthens the code span's delimiter instead of vanishing.
     expect(body).toContain('at step 1 of 2: `` screen.`tap` tap `x` \\| y ``, after 900ms\n\n> line one line two red �\\`tick\\`\n> saw &lt;b&gt;bold&lt;/b&gt; and more');
-    expect(body).toContain('| 🔴 | **tests/we\\|rd.e2e.ts** · 1 failed | 1.2s |');
-    expect(body).toContain('[tests/we\\|rd.e2e.ts:3](https://x.test/blob%29%3Cscript%3E)');
+    expect(body).toContain('| 🔴 | **tests/\\_\\_tests\\_\\_/we\\|rd_flow.e2e.ts** · 1 failed | 1.2s |');
+    expect(body).toContain('[tests/\\_\\_tests\\_\\_/we\\|rd_flow.e2e.ts:3](https://x.test/blob%29%3Cscript%3E)');
     expect(body).toContain('[run artifacts](https://x.test/run%20%281%29)');
     expect(body).not.toContain('');
     expect(body).not.toContain('');
@@ -412,7 +412,7 @@ describe('renderMarkdownReport', () => {
     });
     const body = renderMarkdownReport(page({ status: 'failed', results: [opener] }));
     // The message collapses to one line, so only its first character opens a block; the explanation is its own quoted line.
-    expect(body).toContain('\n\n> \\+ item _ under\n> 1\\) list\n');
+    expect(body).toContain('\n\n> \\+ item \\_ under\n> 1\\) list\n');
   });
 
   it('clips long text by code point, never through an emoji', () => {
