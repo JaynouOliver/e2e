@@ -2492,6 +2492,23 @@ describe('device fixture', () => {
     ]);
   });
 
+  it.each(['android', 'ios'] as const)('refuses a setNetwork state it does not know before any device command on %s', async (platform) => {
+    const h = harness({ platform, bundleId: 'com.example.app' });
+    await openAttempt(h);
+    const device = fixture(h);
+    const before = h.fake.calls.length;
+    await expect(device.setNetwork('off' as never)).rejects.toMatchObject({
+      code: 'INVALID_ARGUMENT',
+      message: 'device.setNetwork state must be one of online, offline, got "off"',
+    });
+    await expect(device.setNetwork('Offline' as never)).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    await expect(device.setNetwork(undefined as never)).rejects.toMatchObject({
+      code: 'INVALID_ARGUMENT',
+      message: 'device.setNetwork state must be one of online, offline, got undefined',
+    });
+    expect(h.fake.calls.length).toBe(before);
+  });
+
   it('resets the simulator keychain on iOS and refuses on Android before any device command', async () => {
     const ios = harness();
     await openAttempt(ios);

@@ -6,6 +6,7 @@
  */
 
 import type { AgentDeviceClient as DeviceSessionClient } from 'agent-device';
+import { TestError } from '@e2e-dev/core/engine';
 import type { EngineFixtureContext, Locator } from '@e2e-dev/core/engine';
 import { appLabel, linkLabel, linkTarget } from './links.ts';
 import type { DevicePermission, MobilePlatform, PermissionState } from './options.ts';
@@ -23,6 +24,9 @@ import type { AgentDeviceSurface, FoldPose, InstallAppOptions, InstalledApp, Ope
  */
 const IOS_OFFLINE =
   "on iOS agent-device can only repaint a simulator's status bar, since the simulator shares the Mac's network, and cannot switch an iPhone's radios, so the app would stay online";
+
+/** Every state `setNetwork` takes, kept equal to its parameter by the compiler. */
+const NETWORK_STATES: readonly string[] = Object.keys({ online: true, offline: true } satisfies Record<Parameters<Device['setNetwork']>[0], true>);
 
 /** Orientations `setOrientation` accepts. */
 export type DeviceOrientation = 'portrait' | 'portrait-upside-down' | 'landscape-left' | 'landscape-right';
@@ -224,6 +228,12 @@ export function createDeviceFixture(surface: AgentDeviceSurface, context: Engine
     },
     locator: (selector) => context.locator({ kind: 'selector', selector }),
     async setNetwork(state) {
+      if (!NETWORK_STATES.includes(state)) {
+        throw new TestError(
+          'INVALID_ARGUMENT',
+          `device.setNetwork state must be one of ${NETWORK_STATES.join(', ')}, got ${typeof state === 'string' ? `"${state}"` : String(state)}`,
+        );
+      }
       if (surface.options.platform === 'ios') {
         if (state === 'offline') throw unsupported(`device.setNetwork('offline') turns off an Android device's Wi-Fi; ${IOS_OFFLINE}`);
         return;
