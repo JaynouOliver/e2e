@@ -369,8 +369,8 @@ describe('renderMarkdownReport', () => {
     expect(body).toContain('a \\| b &lt;img src=x onerror=alert(1)&gt; \\*c\\*');
     // The canonical sanitizer drops color sequences and marks a control character, as the terminal does.
     expect(body).toContain('line one line two red �\\`tick\\`');
-    // A backtick in a label lengthens the code span's delimiter instead of vanishing.
-    expect(body).toContain('at step 1 of 2: `` screen.`tap` tap `x` \\| y ``, after 900ms\n\n> line one line two red �\\`tick\\`\n> saw &lt;b&gt;bold&lt;/b&gt; and more');
+    // A backtick in a label lengthens the code span's delimiter instead of vanishing, and a pipe outside a table stays as written.
+    expect(body).toContain('at step 1 of 2: `` screen.`tap` tap `x` | y ``, after 900ms\n\n> line one line two red �\\`tick\\`\n> saw &lt;b&gt;bold&lt;/b&gt; and more');
     expect(body).toContain('| 🔴 | **tests/we\\|rd.e2e.ts** · 1 failed | 1.2s |');
     expect(body).toContain('[tests/we\\|rd.e2e.ts:3](https://x.test/blob%29%3Cscript%3E)');
     expect(body).toContain('[run artifacts](https://x.test/run%20%281%29)');

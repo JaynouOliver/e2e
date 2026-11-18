@@ -41,7 +41,7 @@ import {
   stepLabel,
   toldAttempt,
 } from './failure-text.ts';
-import { cell, code, formatDuration, link, MAX_ID_CHARS, MAX_PATH_CHARS, MAX_TITLE_CHARS, plural } from './markdown-text.ts';
+import { cell, code, formatDuration, link, MAX_ID_CHARS, MAX_PATH_CHARS, MAX_TITLE_CHARS, plural, tableCell } from './markdown-text.ts';
 import { outcome, type Outcome } from './outcome.ts';
 import { isExploreVerdict } from './traces.ts';
 import { posixRelative, writeTextReport } from './write.ts';
@@ -436,9 +436,9 @@ function agentCell(steps: readonly ReportStep[]): string {
   return parts.join(' · ');
 }
 
-/** One table row; every cell has already escaped the separator. */
+/** One table row. */
 function row(cells: readonly string[]): string {
-  return `| ${cells.join(' | ')} |`;
+  return `| ${cells.map(tableCell).join(' | ')} |`;
 }
 
 /** `⚠️ | title (1 failed attempt first) | 1 step · 4 calls | 3.4s`: one test's row, how it ended noted when it did not simply pass or failed as `test.fail` expected. The file's row above names the target. */

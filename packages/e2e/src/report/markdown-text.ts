@@ -63,18 +63,31 @@ function escapeInline(text: string): string {
  * A code span around text that may hold backticks: the delimiter is one
  * backtick longer than the longest run inside and, when longer than one,
  * padded with a space GFM strips, so no character of the text is lost. The
- * cell separator is escaped, which GFM honours inside a span in a table.
+ * text is verbatim: a backslash is literal inside a span, so the cell
+ * separator is left for `tableCell` to escape where there is a table.
  */
 function codeSpan(text: string): string {
   const longest = Math.max(0, ...Array.from(text.matchAll(/`+/g), (run) => run[0].length));
   const fence = '`'.repeat(longest + 1);
-  const inner = text.replaceAll('|', '\\|');
-  return longest === 0 ? `${fence}${inner}${fence}` : `${fence} ${inner} ${fence}`;
+  return longest === 0 ? `${fence}${text}${fence}` : `${fence} ${text} ${fence}`;
 }
 
-/** A path or label inside backticks: only the cell separator is escaped; a backtick inside lengthens the delimiter. */
+/** A path or label inside backticks, verbatim; a backtick inside lengthens the delimiter. */
 export function code(text: string, max = MAX_CELL_CHARS): string {
   return codeSpan(ellipsize(collapseText(text), max));
+}
+
+/** A backslash escape, which may hide a backtick, or a whole code span. */
+const ESCAPE_OR_CODE_SPAN = /\\.|(`+).*?\1/g;
+
+/**
+ * Text from `cell` and `code` on its way into a table row: the separators
+ * inside its code spans escaped. GFM splits a row on every unescaped `|`
+ * before it reads a span, and only in a table does it take the backslash
+ * back out, so the escape belongs here and not in the span itself.
+ */
+export function tableCell(text: string): string {
+  return text.replace(ESCAPE_OR_CODE_SPAN, (match) => (match.startsWith('`') ? match.replaceAll('|', '\\|') : match));
 }
 
 /**
