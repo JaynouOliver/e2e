@@ -46,7 +46,7 @@ import {
   ConfigurationError,
   TestError,
 } from '@e2e-dev/core/engine';
-import { isAppNotRunning, isSnapshotPresentationFailure, isUnreadableCapture, ORIGIN_WARNING, runCommand, staleOr } from './errors.ts';
+import { isAppNotRunning, isSnapshotPresentationFailure, isUnreadableCapture, ORIGIN_UNKNOWN_BOUNDS, ORIGIN_WARNING, runCommand, staleOr } from './errors.ts';
 import { pointerInteraction, DEFAULT_LONG_PRESS_MS } from './actions.ts';
 import { resolveExpression } from './locate.ts';
 import {
@@ -1540,7 +1540,7 @@ export class AgentDeviceSurface {
           if (rect === undefined) throw notActionable(`node ${target.id} has no bounds to swipe within`);
           if (target.originUnknown) {
             throw notActionable(
-              `${label} failed: the app's window has no known position on the screen, so node bounds, boundingBox() included, may be offset from screen coordinates. Nothing was sent. Swipe the screen with screen.swipe({ direction }), or between screen points with screen.swipe({ from, to }) not taken from those bounds.`,
+              `${label} failed: the ${ORIGIN_UNKNOWN_BOUNDS} Nothing was sent. Swipe the screen with screen.swipe({ direction }), or between screen points with screen.swipe({ from, to }) not taken from those bounds.`,
             );
           }
           const stabilization = gestureStabilization(operation);

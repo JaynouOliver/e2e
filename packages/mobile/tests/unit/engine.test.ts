@@ -16,7 +16,7 @@ import type { EngineFixtureContext, EngineSnapshot, FixtureOperations, LocatorEx
 import type { Device } from '../../src/device.ts';
 import type { RawNode } from '../../src/nodes.ts';
 import { mobile } from '../../src/engine.ts';
-import { ORIGIN_WARNING } from '../../src/errors.ts';
+import { ORIGIN_UNKNOWN_BOUNDS, ORIGIN_WARNING } from '../../src/errors.ts';
 import { swipeWithin } from '../../src/support.ts';
 import { ANDROID_APP_PACKAGE, ANDROID_ID_SNAPSHOT, SETTINGS_NODES, SETTINGS_SNAPSHOT } from '../helpers/fake-client.ts';
 import { boot, harness, poolVariableIn, PROJECT_ROOT, type Harness } from '../helpers/harness.ts';
@@ -3641,8 +3641,7 @@ describe('deterministic actions', () => {
   });
 
   const ORIGIN_UNKNOWN_SNAPSHOT = { ...SETTINGS_SNAPSHOT, warnings: [ORIGIN_WARNING] };
-  const ORIGIN_UNKNOWN_SWIPE =
-    "perform swipe failed: the app's window has no known position on the screen, so node bounds, boundingBox() included, may be offset from screen coordinates. Nothing was sent. Swipe the screen with screen.swipe({ direction }), or between screen points with screen.swipe({ from, to }) not taken from those bounds.";
+  const ORIGIN_UNKNOWN_SWIPE = `perform swipe failed: the ${ORIGIN_UNKNOWN_BOUNDS} Nothing was sent. Swipe the screen with screen.swipe({ direction }), or between screen points with screen.swipe({ from, to }) not taken from those bounds.`;
 
   it('refuses a node swipe aimed from a capture that could not place its window on the screen, and sends nothing', async () => {
     const h = harness({ settle: false, transition: 0 });
@@ -3652,8 +3651,21 @@ describe('deterministic actions', () => {
 
     const refused = { code: 'NOT_ACTIONABLE', retryable: false, message: ORIGIN_UNKNOWN_SWIPE };
     await expect(h.engine.perform!(scroller.ref, { kind: 'swipe', direction: 'down' }, test())).rejects.toMatchObject(refused);
-    // The swipe a locator-scoped scrollUntilVisible sends.
+    // The swipe shape a locator-scoped scrollUntilVisible sends (momentum: 'slow').
     await expect(h.engine.perform!(scroller.ref, { kind: 'swipe', direction: 'down', momentum: 'slow' }, test())).rejects.toMatchObject(refused);
+    expect(h.fake.methods()).not.toContain('interactions.swipe');
+  });
+
+  it('refuses the agent node swipe on a capture without the window origin', async () => {
+    const h = harness({ settle: false, transition: 0 });
+    await openAttempt(h);
+    h.fake.respond('capture.snapshot', () => ORIGIN_UNKNOWN_SNAPSHOT);
+    const scroller = await observed(h, 'Scroller');
+
+    await expect(h.engine.perform!(scroller.ref, { kind: 'swipe', direction: 'down' }, operation())).rejects.toMatchObject({
+      code: 'NOT_ACTIONABLE',
+      retryable: false,
+    });
     expect(h.fake.methods()).not.toContain('interactions.swipe');
   });
 
