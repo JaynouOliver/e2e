@@ -471,6 +471,37 @@ describe('project detection', () => {
     expect(getCiService('gitlab').locate(dir)).toMatchObject({ file: '.gitlab/e2e.gitlab-ci.yml', jobSuffix: '-run' });
   });
 
+  it.each([
+    ['a double-quoted name', '"e2e-web":\n  script: [npx cypress run]\n'],
+    ['a single-quoted name', "'e2e-android':\n  script: [npx detox test]\n"],
+    ['a comment after the name', 'e2e-web: # browser tests\n  script: [npx cypress run]\n'],
+    ['a spec header above it', 'spec:\n  inputs: {}\n---\n"e2e-web":\n  script: [npx cypress run]\n'],
+    ['a byte order mark', '\uFEFFe2e-web:\n  script: [npx cypress run]\n'],
+    ['every line indented', '  build:\n    script: [make]\n  e2e-web:\n    script: [npx cypress run]\n'],
+  ])('renames the jobs beside a job of one of their names written with %s', (_layout, pipeline) => {
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), pipeline);
+    expect(getCiService('gitlab').locate(dir)).toMatchObject({ file: '.gitlab/e2e.gitlab-ci.yml', jobSuffix: '-run' });
+  });
+
+  it.each([
+    ['in a block scalar', 'build:\n  script: |\n    cat > jobs.yml <<EOF\n    e2e-web:\n    EOF\n'],
+    ['as a key of another job', 'build:\n  variables:\n    e2e-web: "1"\n  script: [make]\n'],
+    ['under an anchor nothing merges', '.jobs: &jobs\n  e2e-web:\n    script: [npx cypress run]\nbuild:\n  script: [make]\n'],
+    ['in a comment', '# e2e-web:\nbuild:\n  script: [make]\n'],
+    ['at the start of a longer name', 'e2e-web-smoke:\n  script: [npx cypress run]\n'],
+  ])('keeps the job names beside a pipeline that has one of them only %s', (_place, pipeline) => {
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), pipeline);
+    expect(getCiService('gitlab').locate(dir)).not.toHaveProperty('jobSuffix');
+  });
+
+  it.each([
+    ['an alias with no anchor', 'build: *missing\ne2e-web:\n  script: [npx cypress run]\n'],
+    ['a tab for indentation', 'build:\n\tscript: [make]\ne2e-web:\n  script: [npx cypress run]\n'],
+  ])('still finds a taken job name in a pipeline that is invalid for %s', (_reason, pipeline) => {
+    writeFileSync(path.join(dir, '.gitlab-ci.yml'), pipeline);
+    expect(getCiService('gitlab').locate(dir)).toMatchObject({ jobSuffix: '-run' });
+  });
+
   it('counts any GitHub workflow that runs e2e as set up', () => {
     const github = getCiService('github-actions');
     expect(github.locate(dir)).toEqual({ file: '.github/workflows/e2e.yml', existing: false });

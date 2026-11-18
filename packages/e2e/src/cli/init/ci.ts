@@ -128,7 +128,7 @@ function locateGitlabPipeline(root: string): CiFile {
   // The jobs run in GitLab's default `test` stage, which a pipeline that lists its own stages may leave out.
   const stages = gitlabStages(pipeline);
   // GitLab merges jobs of the same name across included files, so the jobs step aside for ones the pipeline already has.
-  const taken = GITLAB_JOBS.some((name) => new RegExp(`^${name.replaceAll('.', '\\.')}\\s*:`, 'mu').test(pipeline));
+  const taken = parseAllDocuments(pipeline).some((document) => GITLAB_JOBS.some((name) => document.has(name)));
   return {
     file: GITLAB_INCLUDED,
     existing: existsSync(path.join(root, GITLAB_INCLUDED)),
