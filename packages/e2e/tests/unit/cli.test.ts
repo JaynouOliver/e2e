@@ -452,6 +452,22 @@ describe('e2e run argument parsing', () => {
     }
   });
 
+  it('rejects a blank --retries or --workers with exit code 2 instead of reading it as zero', async () => {
+    for (const flag of ['--retries', '--workers']) {
+      for (const value of ['', ' ', '\t\n']) {
+        runMock.mockClear();
+        stderrSpy.mockClear();
+        process.exitCode = undefined;
+        await invoke('run', flag, value);
+        expect(runMock, `${flag} ${JSON.stringify(value)}`).not.toHaveBeenCalled();
+        expect(process.exitCode).toBe(2);
+        expect(written(stderrSpy)).toContain(`option '${flag} <n>' argument '${value}' is invalid. must be a nonnegative integer`);
+      }
+    }
+    await invoke('run', '--retries', '0');
+    expect(lastRunOptions().retries).toBe(0);
+  });
+
   it('passes boolean and path flags through', async () => {
     await invoke(
       'run',

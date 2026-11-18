@@ -55,9 +55,13 @@ function parsePositiveInt(value: string): number {
   return parsed;
 }
 
-/** Shape check only; the config resolver applies each flag's bounds. */
+/**
+ * Shape check only; the config resolver applies each flag's bounds. A blank
+ * value is refused, not read as the zero `Number` makes of it: `--retries
+ * "$RETRIES"` with the variable unset must not turn retries off.
+ */
 function parseNonNegativeInt(value: string): number {
-  const parsed = Number(value);
+  const parsed = value.trim() === '' ? Number.NaN : Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new InvalidArgumentError('must be a nonnegative integer');
   }

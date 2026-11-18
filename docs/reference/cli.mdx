@@ -712,7 +712,8 @@ anything starts, as the config value would. `--target`, `--tag`,
 `--exclude-tag`, and `--agent` take each name once. An empty value (`--tag ''`,
 or `--tag "$TAGS"` with the variable unset) is a usage error, exit 2, never a
 wider selection. An empty `--reporter` is the same usage error, never a run
-with no reporters.
+with no reporters. So is an empty `--retries`, never a run with no retries,
+and an empty `--workers`.
 
 Filters only narrow, and each applies after the one before: positionals, then
 `.only`, `--tag`, `--exclude-tag`, `--grep`, `--grep-invert`, `--last-failed`,
