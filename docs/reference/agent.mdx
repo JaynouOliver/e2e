@@ -88,7 +88,9 @@ A check inside it never confirms the step's recording.
 
 ```ts
 await agent.act('open settings and turn on dark mode', {
-  onAction: ({ index, action }) => app.screenshot(`${index} ${action}`),
+  onAction: async ({ index, action }) => {
+    await app.screenshot(`${index} ${action}`);
+  },
 });
 ```
 
@@ -115,7 +117,9 @@ fail after it, with no `onAction` call.
 
 ```ts
 await agent.act('open settings and turn on dark mode', {
-  onBeforeAction: ({ index }) => app.screenshot(`before ${index}`),
+  onBeforeAction: async ({ index }) => {
+    await app.screenshot(`before ${index}`);
+  },
 });
 ```
 

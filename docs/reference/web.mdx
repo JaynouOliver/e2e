@@ -941,7 +941,7 @@ const popup = await browser.waitForPopup(() =>
 );
 const code = await screen.getByText(/^TAB-/).textContent();
 await popup.close(); // the opener is active again
-await screen.getByRole('textbox', 'Verification code').fill(code);
+await screen.getByRole('textbox', 'Verification code').fill(code ?? '');
 ```
 
 - `waitForPopup(trigger)` runs the trigger and resolves with the tab it

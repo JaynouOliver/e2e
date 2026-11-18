@@ -777,7 +777,7 @@ const popup = await browser.waitForPopup(() =>
 );
 const code = await screen.getByText(/^TAB-/).textContent();
 await popup.close(); // the opener is active again
-await screen.getByRole('textbox', 'Verification code').fill(code);
+await screen.getByRole('textbox', 'Verification code').fill(code ?? '');
 ```
 
 - `waitForPopup(trigger)` はトリガーを実行し、開いたタブがアクティブになると、そのタブを返します。待機開始後に最初に現れたタブを取得します。以前の操作で開かれ、今になってページが読み込まれたタブが対象になることもあります。

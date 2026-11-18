@@ -63,7 +63,9 @@ const { summary, cache } = await agent.act('Sign in', {
 
 ```ts
 await agent.act('open settings and turn on dark mode', {
-  onAction: ({ index, action }) => app.screenshot(`${index} ${action}`),
+  onAction: async ({ index, action }) => {
+    await app.screenshot(`${index} ${action}`);
+  },
 });
 ```
 
@@ -81,7 +83,9 @@ await agent.act('move the pin to Warsaw', {
 
 ```ts
 await agent.act('open settings and turn on dark mode', {
-  onBeforeAction: ({ index }) => app.screenshot(`before ${index}`),
+  onBeforeAction: async ({ index }) => {
+    await app.screenshot(`before ${index}`);
+  },
 });
 ```
 
