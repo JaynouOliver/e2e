@@ -34,6 +34,12 @@ export interface RawNodeData {
   labels: string[] | null;
   text: string | null;
   value: string | null;
+  /**
+   * The labels of a select's selected options: what the control shows, where
+   * `value` is the token it submits. Null for any other node, and for a select
+   * with no option selected. A display-value query matches any one of them.
+   */
+  displayed: string[] | null;
   /** Text selected inside the focused field or editing host; null when unfocused, collapsed, or secure. */
   selection: string | null;
   inputPurpose: 'username' | 'password' | 'one-time-code' | 'generic-secret' | 'none';

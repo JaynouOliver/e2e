@@ -1565,6 +1565,7 @@ export const readSemanticsFunction = <Mode extends SemanticMode>(
     const autocomplete = (el.getAttribute('autocomplete') ?? '').toLowerCase();
 
     let value: string | null = null;
+    let displayed: string[] | null = null;
     let checked: boolean | null = null;
     let selectedState: boolean | null = null;
     if (el instanceof HTMLInputElement) {
@@ -1578,6 +1579,7 @@ export const readSemanticsFunction = <Mode extends SemanticMode>(
       value = el.value;
     } else if (el instanceof HTMLSelectElement) {
       value = el.value;
+      if (el.selectedOptions.length > 0) displayed = Array.from(el.selectedOptions, (option) => option.label);
     } else if (el instanceof HTMLOptionElement) {
       selectedState = el.selected;
       value = el.value;
@@ -1682,6 +1684,7 @@ export const readSemanticsFunction = <Mode extends SemanticMode>(
       labels,
       text,
       value: secure ? null : value,
+      displayed,
       selection,
       inputPurpose,
       states: {

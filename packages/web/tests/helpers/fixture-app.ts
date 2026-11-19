@@ -43,6 +43,30 @@ const VALUES = `<!doctype html>
 </body>
 </html>`;
 
+const SELECTS = `<!doctype html>
+<html>
+<head><title>Fixture Selects</title></head>
+<body>
+<label>Country <select data-testid="country">
+  <option value="de">Germany</option>
+  <option value="pl" selected>  Poland
+  </option>
+</select></label>
+<label>Plan <select data-testid="plan">
+  <option value="">Choose a plan</option>
+  <option value="pro" label="Pro">Professional</option>
+</select></label>
+<label>Toppings <select data-testid="toppings" multiple>
+  <option value="h" selected>Ham</option>
+  <option value="o">Olives</option>
+  <option value="m" selected>Mushrooms</option>
+</select></label>
+<label>None <select data-testid="none" multiple><option value="x">Unpicked</option></select></label>
+<label>Empty <select data-testid="empty"></select></label>
+<label>Code <input data-testid="code" value="pl"></label>
+</body>
+</html>`;
+
 const LOGIN = `<!doctype html>
 <html>
 <head><title>Fixture Login</title></head>
@@ -384,6 +408,7 @@ const PAGES: Readonly<Record<string, string>> = {
   '/closed-login': CLOSED_LOGIN,
   '/form': FORM,
   '/values': VALUES,
+  '/selects': SELECTS,
   '/login': LOGIN,
   '/state': STATE,
   '/twins': TWINS,

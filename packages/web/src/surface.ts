@@ -989,7 +989,7 @@ export class PlaywrightSurface {
     // and an aria-label override or a second label does not either.
     const predicate =
       displayValue !== null
-        ? (raw: RawNodeData) => matchesText(raw.value ?? '', displayValue)
+        ? (raw: RawNodeData) => (raw.displayed ?? [raw.value ?? '']).some((shown) => matchesText(shown, displayValue))
         : name !== null
           ? (raw: RawNodeData) =>
               raw.labels !== null && raw.labels.some((label) => matchesText(label, name))

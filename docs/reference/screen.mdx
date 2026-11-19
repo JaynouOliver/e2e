@@ -220,6 +220,10 @@ getByDisplayValue(value: TextMatch, options?: TextMatchOptions): Locator;
 await screen.getByDisplayValue('ada@example.test').clear();
 ```
 
+A `<select>` matches by the label of a selected option, the text it shows,
+not by that option's `value` attribute. `inputValue()` and `toHaveValue` still
+read the attribute.
+
 <Note>
 In the web engine a `getByDisplayValue` locator cannot be the scope of a
 child query or a `has` filter; both fail with `UNSUPPORTED_CAPABILITY`.
