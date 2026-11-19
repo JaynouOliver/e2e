@@ -172,7 +172,8 @@ For a new project, the wizard asks for:
 
 After you confirm the file changes, the wizard asks whether to install the
 selected dependencies. The installer follows the project's `packageManager`
-field or lockfile, then the invoking package manager, then npm.
+field or lockfile, or its workspace root's for a workspace member. The
+fallback is the invoking package manager, then npm.
 
 ##### Files
 

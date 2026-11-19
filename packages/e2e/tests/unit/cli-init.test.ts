@@ -759,6 +759,20 @@ describe('e2e init', () => {
     expect(spawnSync).toHaveBeenCalledWith('pnpm', ['install'], expect.objectContaining({ cwd: dir }));
   });
 
+  it.each([
+    ['pnpm', { private: true }, { 'pnpm-workspace.yaml': 'packages:\n  - apps/*\n', 'pnpm-lock.yaml': '' }],
+    ['yarn', { private: true, packageManager: 'yarn@4.5.0', workspaces: ['apps/*'] }, {}],
+  ] as const)('installs a workspace member with %s, the manager of its workspace root', async (manager, rootManifest, rootFiles) => {
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify(rootManifest));
+    for (const [name, content] of Object.entries(rootFiles)) writeFileSync(path.join(dir, name), content);
+    const project = path.join(dir, 'apps', 'web');
+    mkdirSync(project, { recursive: true });
+    writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'web', type: 'module' }));
+    expect((await init(project, { yes: true, install: true })).exitCode).toBe(0);
+    expect(spawnSync).toHaveBeenCalledExactlyOnceWith(manager, ['install'], expect.objectContaining({ cwd: project }));
+    expect(output()).toContain(`${manager} test:e2e`);
+  });
+
   it('keeps the scaffold and returns a failure when installation fails', async () => {
     vi.mocked(spawnSync).mockReturnValueOnce(spawnResult(1));
     vi.mocked(clack.confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(true);

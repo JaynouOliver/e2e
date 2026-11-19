@@ -6,7 +6,6 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, unl
 import os from 'node:os';
 import path from 'node:path';
 import {
-  detectPackageManager,
   detectWorkspacePackageManager,
   execCommand,
   readPackageManifest,
@@ -343,7 +342,7 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
   );
   if (isCancelled(mcpFiles)) return cancel();
   facts.mcp = mcpFiles.length > 0;
-  const manager = detectPackageManager(cwd, pkg.manifest.packageManager);
+  const { manager } = detectWorkspacePackageManager(cwd);
   let mcpRegistrations: ReturnType<typeof planMcpRegistration>['registrations'];
   try {
     const plan = planMcpRegistration(cwd, mcpFiles, manager);
