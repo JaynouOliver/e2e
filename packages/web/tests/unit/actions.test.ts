@@ -8,7 +8,7 @@
 import type { Locator as PwLocator, Page } from 'playwright-core';
 import { describe, expect, it, vi } from 'vitest';
 import { EngineError, TestError, type LocatorAction } from '@e2e-dev/core/engine';
-import { classifyActionError, dispatchLocatorAction, dispatchPointerAction } from '../../src/actions.ts';
+import { classifyActionError, dispatchLocatorAction, dispatchPointerAction, insertedCharacter } from '../../src/actions.ts';
 import { dispatchedInput, type ActionTarget } from '../../src/support.ts';
 
 vi.mock('node:timers/promises', () => ({
@@ -162,6 +162,7 @@ function stubLocator(box = { x: 10, y: 20, width: 200, height: 100 }, aim: 'poin
     dblclick: vi.fn(async () => undefined),
     fill: vi.fn(async () => undefined),
     press: vi.fn(async () => undefined),
+    pressSequentially: vi.fn(async () => undefined),
     hover: vi.fn(async () => undefined),
     focus: vi.fn(async () => undefined),
     scrollIntoViewIfNeeded: vi.fn(async () => undefined),
@@ -211,6 +212,20 @@ describe('dispatchedInput', () => {
   });
 });
 
+describe('insertedCharacter', () => {
+  it.each([' ', '~', 'a', '$', '+', 'Enter', 'Control+a', 'Shift++', 'Shift+Tab'])('leaves %j to a key press', (key) => {
+    expect(insertedCharacter(key)).toBeUndefined();
+  });
+
+  it.each(['é', 'ß', '€', '中', '😀', '\u00a0', '¡'])('inserts %j as text', (key) => {
+    expect(insertedCharacter(key)).toBe(key);
+  });
+
+  it.each(['Control+é', 'Shift+é', 'ControlOrMeta+Alt+中'])('refuses %j, which has no key to hold a modifier over', (key) => {
+    expect(() => insertedCharacter(key)).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CAPABILITY' }));
+  });
+});
+
 describe('dispatchLocatorAction', () => {
   const lookup = () => {
     throw new Error('no second target in these cases');
@@ -218,6 +233,8 @@ describe('dispatchLocatorAction', () => {
   const OPERATION = { timeoutMs: 7, signal: new AbortController().signal };
 
   it.each([
+    [{ kind: 'press', key: 'Control+a' }, 'press', ['Control+a', { timeout: 7 }]],
+    [{ kind: 'press', key: 'é' }, 'pressSequentially', ['é', { timeout: 7 }]],
     [{ kind: 'longPress', durationMs: 900 }, 'click', [{ timeout: 7, delay: 900 }]],
     [{ kind: 'clear' }, 'fill', ['', { timeout: 7 }]],
     [{ kind: 'selectOption', value: 'Blue' }, 'selectOption', [{ label: 'Blue' }, { timeout: 7 }]],
@@ -232,6 +249,16 @@ describe('dispatchLocatorAction', () => {
       expect(spy.mock.calls[0]).toEqual(args);
     },
   );
+
+  it('inserts an off-layout character through an element handle and dispatches nothing for one with a modifier', async () => {
+    const element = { press: vi.fn(async () => undefined), type: vi.fn(async () => undefined) };
+    const target = { kind: 'element', element } as unknown as ActionTarget;
+    await dispatchLocatorAction(target, { kind: 'press', key: '€' }, OPERATION, lookup);
+    expect(element.type).toHaveBeenCalledWith('€', { timeout: 7 });
+    await expect(dispatchLocatorAction(target, { kind: 'press', key: 'Control+€' }, OPERATION, lookup)).rejects.toMatchObject({ code: 'UNSUPPORTED_CAPABILITY' });
+    expect(element.press).not.toHaveBeenCalled();
+    expect(element.type).toHaveBeenCalledTimes(1);
+  });
 
   it('uploads through a file chooser it awaits before clicking a button', async () => {
     const { element, target, page, chooser, calls } = stubUpload(false);

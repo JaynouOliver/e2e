@@ -1,7 +1,7 @@
 /** Locator action dispatch for the Playwright engine. */
 
 import type { ElementHandle, Page } from 'playwright-core';
-import { Deadline, EngineError, pollCondition, type KeyModifier, type LocatorAction, type NodeRef, type PointerAction, type ViewportPoint } from '@e2e-dev/core/engine';
+import { Deadline, EngineError, parseKey, pollCondition, type KeyModifier, type LocatorAction, type NodeRef, type PointerAction, type ViewportPoint } from '@e2e-dev/core/engine';
 import {
   asActionable,
   isClassified,
@@ -22,6 +22,27 @@ import type { ConnectionBudget } from './operation-budget.ts';
 
 /** How long a long press holds the button when the action names no duration. */
 const DEFAULT_LONG_PRESS_MS = 500;
+
+const US_LAYOUT_CHARACTER = /^[ -~]$/;
+
+/**
+ * The character of a `press` key that Playwright inserts as text because its
+ * US keyboard layout has no key for it (`é`, `€`, `中`); `undefined` for a
+ * key Playwright presses. Inserted text has no key event for a modifier to
+ * hold over, so such a character with modifiers is refused.
+ */
+export function insertedCharacter(key: string): string | undefined {
+  const parsed = parseKey(key);
+  if (parsed?.key.kind !== 'char' || US_LAYOUT_CHARACTER.test(parsed.key.char)) return undefined;
+  if (parsed.modifiers.length > 0) {
+    throw new EngineError(
+      'UNSUPPORTED_CAPABILITY',
+      `press cannot hold ${parsed.modifiers.join('+')} with "${parsed.key.char}": Playwright's keyboard has no key for that character; press it alone to type it`,
+      { retryable: false },
+    );
+  }
+  return parsed.key.char;
+}
 
 /** The keys a click holds, as Playwright's `modifiers` takes them; the contract spells them the same. */
 function heldKeys(action: Extract<LocatorAction, { kind: 'tap' | 'doubleTap' | 'secondaryTap' }>): { modifiers?: KeyModifier[] } {
@@ -303,11 +324,16 @@ export async function dispatchLocatorAction(
     case 'clear':
       await locator.fill('', { timeout });
       return;
-    case 'press':
+    case 'press': {
       // Playwright spells keys as the contract grammar does; the harness has
-      // already refused anything outside it, so the key is pressed as given.
-      await locator.press(action.key, { timeout });
+      // already refused anything outside it, so a key on Playwright's layout
+      // is pressed as given.
+      const text = insertedCharacter(action.key);
+      if (text === undefined) await locator.press(action.key, { timeout });
+      else if (target.kind === 'locator') await target.locator.pressSequentially(text, { timeout });
+      else await target.element.type(text, { timeout });
       return;
+    }
     case 'check':
     case 'uncheck':
       await setChecked(target, action.kind === 'check', operation);

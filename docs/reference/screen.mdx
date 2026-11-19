@@ -779,6 +779,10 @@ await screen.getByRole('textbox', 'Notes').press('ControlOrMeta+a');
 A key is zero or more modifiers and one key, joined with `+`, as the
 [key grammar](/reference/engine#keys) lists them. `Shift++` presses `+`.
 
+The web engine has keys for the characters of a US keyboard. Any other
+character (`é`, `中`) is inserted as text: the page gets `input` but no
+`keydown` or `keyup`, and a modifier with it is `UNSUPPORTED_CAPABILITY`.
+
 | Throws | When |
 | --- | --- |
 | `UNSUPPORTED_CAPABILITY` | A key the platform lacks. |
