@@ -45,6 +45,17 @@ describe('compareText', () => {
     expect(compareText(value, { kind: 'regexp', source: '^line1\\n\\nline2 {2}$', flags: '' }, raw)).toBe(true);
     expect(compareText(value, { kind: 'string', value: 'line1 line2', exact: true }, { ...raw, normalize: true })).toBe(true);
   });
+
+  it('drops zero-width spaces and soft hyphens from both sides of a string comparison, and leaves a regexp its text', () => {
+    const equals = { mode: 'equals', normalize: true } as const;
+    expect(matchesText('Soft\u00adhyphen', { kind: 'string', value: 'Softhyphen', exact: true })).toBe(true);
+    expect(matchesText('Softhyphen', { kind: 'string', value: 'Soft\u00adhyphen', exact: true })).toBe(true);
+    expect(matchesText('Zero\u200bwidth \u200b', { kind: 'string', value: 'zerowidth', exact: false })).toBe(true);
+    expect(compareText('Pay\u200bment due', { kind: 'string', value: 'Payment', exact: true }, contains)).toBe(true);
+    expect(compareText('Soft\u00adhyphen', { kind: 'regexp', source: '^Softhyphen$', flags: '' }, equals)).toBe(false);
+    expect(compareText('Soft\u00adhyphen', { kind: 'regexp', source: '^Soft\\u00adhyphen$', flags: '' }, equals)).toBe(true);
+    expect(compareText('Soft\u00adhyphen', { kind: 'string', value: 'Softhyphen', exact: true }, raw)).toBe(false);
+  });
 });
 
 describe('toTextPattern', () => {

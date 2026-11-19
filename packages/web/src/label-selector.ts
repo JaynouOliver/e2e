@@ -44,15 +44,15 @@ export function exactLabelSelector(body: ExactLabelSelectorBody): string {
  * The engine behind `e2e-label=<json>`: the labelable controls under the query
  * root, across the closed shadow roots recorded under it, whose labels as the
  * reader names them (`RawNodeData.labels`) include the body's value once both
- * are whitespace-normalized, the comparison the surface makes with
- * `matchesText` on an exact string pattern. Reading a node's semantics for
+ * are normalized as `matchesText` normalizes them, the comparison the surface
+ * makes on an exact string pattern. Reading a node's semantics for
  * each candidate is what the standalone query pays too. The reader is embedded
  * as source because a selector engine, like the reader, is one self-contained
  * page function.
  */
 export const EXACT_LABEL_SELECTOR_ENGINE_SOURCE = `() => {${CLOSED_SHADOW_HELPERS_SOURCE}
   const read = (${readSemanticsFunction.toString()});
-  const normalize = (text) => text.replace(/\\s+/gu, ' ').trim();
+  const normalize = (text) => text.replace(/[\\u200b\\u00ad]/g, '').replace(/\\s+/gu, ' ').trim();
   const queryAll = (root, selector) => {
     const body = JSON.parse(selector);
     const expected = normalize(body.value);

@@ -41,7 +41,9 @@ A string passed to `getByRole` as the name, `getByLabel`, `getByPlaceholder`,
 `getByText`, or `getByDisplayValue` matches the whole text, case-sensitive,
 after whitespace normalization: `getByRole('button', 'Save')` does not match
 `Save changes`. `{ exact: false }` makes it a case-insensitive substring
-match, and a `RegExp` matches as written.
+match, and a `RegExp` matches as written. A string name, label, or text also
+ignores zero-width spaces and soft hyphens: `getByLabel('Streetname')` finds a
+field labelled `Street&shy;name`.
 
 Every query accepts `visible: true`; see
 [Hidden duplicates](#hidden-duplicates).

@@ -33,6 +33,9 @@ export function normalizeText(text: string): string {
   return text.replace(/\s+/gu, ' ').trim();
 }
 
+/** The zero-width space and the soft hyphen, the two characters Playwright's string matching drops. */
+const INVISIBLE = /[\u200b\u00ad]/g;
+
 /**
  * Normalizes text that may carry control characters: sanitized first, then
  * whitespace-collapsed. The one-line form of screen text that reaches models,
@@ -74,7 +77,7 @@ export function normalizeRegexpFlags(flags: string): string {
 export interface TextComparison {
   /** `contains` accepts the expected string anywhere in the actual one; a regexp is tested the same way in both modes. */
   readonly mode: 'equals' | 'contains';
-  /** Whether both sides are whitespace-normalized first. `false` compares the raw strings, as a form control's value is. */
+  /** Whether both sides are whitespace-normalized first, and for a string pattern read without zero-width spaces and soft hyphens. `false` compares the raw strings, as a form control's value is. */
   readonly normalize: boolean;
   /** Compares a string pattern case-insensitively. A RegExp reads case from its flags; `withIgnoreCase` sets them. */
   readonly ignoreCase?: boolean | undefined;
@@ -96,9 +99,12 @@ export function matchesText(actual: string, pattern: TextPattern): boolean {
  * platform reports verbatim.
  */
 export function compareText(actual: string, pattern: TextPattern, comparison: TextComparison): boolean {
-  const subject = comparison.normalize ? normalizeText(actual) : actual;
-  if (pattern.kind === 'regexp') return testPattern(pattern.source, pattern.flags, subject);
-  const expected = comparison.normalize ? normalizeText(pattern.value) : pattern.value;
+  if (pattern.kind === 'regexp') {
+    return testPattern(pattern.source, pattern.flags, comparison.normalize ? normalizeText(actual) : actual);
+  }
+  const read = (text: string): string => (comparison.normalize ? normalizeText(text.replace(INVISIBLE, '')) : text);
+  const subject = read(actual);
+  const expected = read(pattern.value);
   if (!pattern.exact) return subject.toLowerCase().includes(expected.toLowerCase());
   const fold = (text: string): string => (comparison.ignoreCase === true ? text.toLowerCase() : text);
   return comparison.mode === 'equals' ? fold(subject) === fold(expected) : fold(subject).includes(fold(expected));

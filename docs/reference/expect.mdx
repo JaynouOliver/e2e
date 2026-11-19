@@ -750,7 +750,8 @@ has held:
 ### Text matching
 
 - Text comparison is normalized: leading and trailing whitespace is trimmed
-  and each run of whitespace collapses to one space.
+  and each run of whitespace collapses to one space. A string comparison also
+  drops zero-width spaces and soft hyphens; a `RegExp` is tested with them.
 - `toHaveText` and `toContainText` read the same rendered text as
   [`textContent()`](/reference/screen#locator-reads), `innerText` on the web.
 - A `TextMatch` string matches exactly. A `RegExp` uses its own source and
