@@ -223,6 +223,8 @@ describe('role mapping', () => {
       <ul role="none"><li data-testid="item">Home</li><li role="listitem" data-testid="explicit-item">Docs</li></ul>
       <ol role="presentation"><li data-testid="step">Step<ul><li data-testid="nested">Nested</li></ul></li></ol>
       <div role="presentation"><li data-testid="stray">Stray</li></div>
+      <table role="presentation"><tr data-testid="lone-row"><th data-testid="lone-header">Only</th></tr></table>
+      <table role="none" aria-label="Labelled"><tr data-testid="labelled-row"><td data-testid="labelled-cell">Labelled</td></tr></table>
     `);
     const nodes = await rolesByTestId();
     const roles = Object.fromEntries([...nodes].map(([testId, node]) => [testId, node.role]));
@@ -251,12 +253,16 @@ describe('role mapping', () => {
       step: 'presentation',
       nested: 'listitem',
       stray: 'listitem',
+      'lone-row': 'presentation',
+      'lone-header': undefined,
+      'labelled-row': 'row',
+      'labelled-cell': 'cell',
     });
     const testIds = (role: 'rowgroup' | 'row' | 'cell' | 'columnheader' | 'rowheader' | 'listitem') =>
       page.getByRole(role).evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')));
-    expect(await testIds('rowgroup')).toEqual([null, null]);
-    expect(await testIds('row')).toEqual(['explicit-row', 'conflict-row', 'focusable-row']);
-    expect(await testIds('cell')).toEqual(['conflict-cell', null]);
+    expect(await testIds('rowgroup')).toEqual([null, null, null]);
+    expect(await testIds('row')).toEqual(['explicit-row', 'conflict-row', 'focusable-row', 'labelled-row']);
+    expect(await testIds('cell')).toEqual(['conflict-cell', null, 'labelled-cell']);
     expect(await testIds('columnheader')).toEqual([]);
     expect(await testIds('rowheader')).toEqual([]);
     expect(await testIds('listitem')).toEqual(['explicit-item', 'nested', 'stray']);
