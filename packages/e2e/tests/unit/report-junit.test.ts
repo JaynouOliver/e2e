@@ -452,6 +452,35 @@ describe('renderJunitReport', () => {
     expect(rootAttributes(xml)).toMatchObject({ tests: '1', errors: '1' });
   });
 
+  it('counts the failed group attempt for a flaky serial member that passed in it', () => {
+    const member = { index: 0, testId: 'test-1', status: 'passed' as const, startedAt: AT, durationMs: 1000, steps: [], secondaryErrors: [] };
+    const group: ReportSerialGroup = {
+      id: 'group-1',
+      serialId: 'checkout',
+      declarationIndex: 0,
+      file: 'tests/checkout.e2e.ts',
+      source: { file: 'tests/checkout.e2e.ts', line: 1, column: 1 },
+      titlePath: ['checkout'],
+      targetId: 'web',
+      platform: 'web',
+      agent: 'default',
+      repeat: 0,
+      memberTestIds: ['test-1'],
+      status: 'flaky',
+      attempts: [
+        { ...reportAttempt({ status: 'failed', durationMs: 3000 }), status: 'failed', members: [{ ...member, id: 'member-1' }] },
+        { ...reportAttempt({ id: 'attempt-2', index: 1, durationMs: 2000 }), status: 'passed', members: [{ ...member, id: 'member-2' }] },
+      ],
+    };
+    const xml = render(
+      reportDocument({
+        serialGroups: [group],
+        results: [reportResult({ status: 'flaky', serialGroupId: 'group-1', attempts: [] })],
+      }),
+    );
+    expect(xml).toContain('<system-out>flaky: 1 failed attempt before passing</system-out>');
+  });
+
   it('reads a serial member from its group attempt', () => {
     const group: ReportSerialGroup = {
       id: 'group-1',

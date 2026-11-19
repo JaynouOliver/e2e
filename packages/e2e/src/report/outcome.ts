@@ -48,7 +48,7 @@ export interface Outcome {
   readonly lastFailed: AttemptView | undefined;
   /** Every attempt in order, so a reporter can say whether they failed alike. */
   readonly attempts: readonly AttemptView[];
-  /** Attempts that did not pass before the final one; what a flaky pass cost. */
+  /** Attempts that did not pass before the final one; what a flaky pass cost. A serial member counts its group's, since the group retries as one. */
   readonly failedAttempts: number;
 }
 
@@ -60,13 +60,14 @@ export function outcome(result: ReportResult, groups: ReadonlyMap<string, Report
   const earlier = views.slice(0, -1);
   const final = views.at(-1) ?? NO_ATTEMPT;
   const verdict = views.findLast((view) => !view.cut && reachedVerdict(result.status, view.status)) ?? final;
+  const retried = result.serialGroupId === undefined ? earlier : (groups.get(result.serialGroupId)?.attempts.slice(0, -1) ?? []);
   return {
     durationMs: verdict.durationMs,
     final,
     verdict,
     lastFailed: earlier.toReversed().find((attempt) => attempt.status !== 'passed'),
     attempts: views,
-    failedAttempts: earlier.filter((attempt) => attempt.status !== 'passed').length,
+    failedAttempts: retried.filter((attempt) => attempt.status !== 'passed').length,
   };
 }
 

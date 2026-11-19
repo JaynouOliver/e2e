@@ -3,7 +3,7 @@ import type { ReportResult, ReportSerialAttempt, ReportSerialGroup } from '../..
 import { outcome } from '../../src/report/outcome.ts';
 import { REPORT_AT, reportAttempt, reportError, reportResult } from '../helpers/report.ts';
 
-function serialAttempt(index: number, status: 'failed' | 'interrupted', durationMs: number): ReportSerialAttempt {
+function serialAttempt(index: number, status: 'failed' | 'interrupted' | 'passed', durationMs: number): ReportSerialAttempt {
   return {
     ...reportAttempt({ index, status }),
     status,
@@ -52,5 +52,18 @@ describe('serial verdict attempt', () => {
     expect(result.verdict.error).toBe(cutRetry ? error : launchError);
     expect(result.final.error).toBe(launchError);
     expect(result.attempts).toHaveLength(2);
+  });
+});
+
+describe('failed attempts of a flaky serial member', () => {
+  it('counts the group attempt a member passed in while a later member failed', () => {
+    const result = serialOutcome([serialAttempt(0, 'failed', 1200), serialAttempt(1, 'passed', 900)], 'flaky');
+    expect(result.failedAttempts).toBe(1);
+    expect(result.lastFailed).toBeUndefined();
+  });
+
+  it('leaves out a passed group attempt that a folded rerun put before the final one', () => {
+    const attempts = [serialAttempt(0, 'failed', 1200), serialAttempt(1, 'passed', 900), serialAttempt(2, 'failed', 1100), serialAttempt(3, 'passed', 800)];
+    expect(serialOutcome(attempts, 'flaky').failedAttempts).toBe(2);
   });
 });
