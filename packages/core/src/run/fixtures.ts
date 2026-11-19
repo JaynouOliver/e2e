@@ -687,7 +687,8 @@ function createApp(environment: AttemptEnvironment, engine: LocatorEngine): App 
     },
     async screenshot(label?: string): Promise<string> {
       return steps.run('app', 'app.screenshot', label ?? '', async () => {
-        const relative = await engine.session.artifacts.screenshot(label, engine.operation());
+        // The label names the file, and the report holds the file's path.
+        const relative = await engine.session.artifacts.screenshot(label === undefined ? undefined : steps.redactText(label), engine.operation());
         environment.steps.attachArtifact(environment.artifacts.register('screenshot', relative));
         return path.join(environment.artifacts.dir, relative);
       });
@@ -695,7 +696,7 @@ function createApp(environment: AttemptEnvironment, engine: LocatorEngine): App 
     async startRecording(options?: RecordingOptions): Promise<void> {
       const name = options?.name;
       await steps.run('app', 'app.startRecording', typeof name === 'string' ? name : '', async () => {
-        await recordings.startSpan(name, engine.operation());
+        await recordings.startSpan(typeof name === 'string' ? steps.redactText(name) : name, engine.operation());
       });
     },
     stopRecording: () =>
