@@ -234,6 +234,32 @@ export const readSemanticsFunction = <Mode extends SemanticMode>(
   const hasPresentationConflict = (el: Element): boolean =>
     isFocusable(el) || hasGlobalAriaAttribute(el, NAME_PROHIBITED_TAG_ROLES[el.tagName.toLowerCase()] ?? null);
 
+  /** The parent tags a required child inherits a presentational role from, as Playwright's `getByRole` reads it. */
+  const PRESENTATION_INHERITANCE_PARENTS: ReadonlyMap<string, readonly string[]> = new Map([
+    ['li', ['ol', 'ul']],
+    ['thead', ['table']],
+    ['tbody', ['table']],
+    ['tfoot', ['table']],
+    ['tr', ['thead', 'tbody', 'tfoot', 'table']],
+    ['td', ['tr']],
+    ['th', ['tr']],
+  ]);
+
+  /**
+   * WAI-ARIA presentational role inheritance: a row, cell, or list item has
+   * no role of its own once its table or list is `presentation` or `none`.
+   */
+  const inheritedPresentationRole = (el: Element): string | null => {
+    for (let current = el; ; ) {
+      const parent = current.parentElement;
+      const parents = PRESENTATION_INHERITANCE_PARENTS.get(current.tagName.toLowerCase());
+      if (parent === null || parents === undefined || parents.indexOf(parent.tagName.toLowerCase()) === -1) return null;
+      const role = explicitRole(parent);
+      if ((role === 'presentation' || role === 'none') && !isFocusable(parent) && !hasGlobalAriaAttribute(parent, role)) return role;
+      current = parent;
+    }
+  };
+
   const implicitRole = memoized((el: Element): string | null => {
     const explicit = explicitRole(el);
     if (explicit !== null && !((explicit === 'presentation' || explicit === 'none') && hasPresentationConflict(el))) {
@@ -243,6 +269,8 @@ export const readSemanticsFunction = <Mode extends SemanticMode>(
     // Ahead of the tag: an editor's host is the control, whatever landmark or
     // structure its tag would otherwise be.
     if (isEditingHost(el)) return 'textbox';
+    const inherited = inheritedPresentationRole(el);
+    if (inherited !== null) return inherited;
     const tag = el.tagName.toLowerCase();
     const type = (el.getAttribute('type') ?? '').toLowerCase();
     switch (tag) {
