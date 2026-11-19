@@ -343,6 +343,17 @@ describe('describeDelta', () => {
       expect(describeDelta(before, after, false)).toEqual({ appeared: [{ role: 'status', text: 'Record created' }], gone: [] });
     });
 
+    it.each(['1,204', '1.204', '1\u202f204', "1'204", '1\u2019204', '1,234,567'])('drops the tally %s when the step has a stable result', (total) => {
+      const before = nodes([heading, node('a', { text: '1,203' })]);
+      const after = nodes([heading, node('done', { role: 'status', text: 'Record created' }), node('b', { text: total })]);
+      expect(describeDelta(before, after, false)).toEqual({ appeared: [{ role: 'status', text: 'Record created' }], gone: [] });
+    });
+
+    it.each(['12.50', '3,5', '0.750', '1,2040', '1234,567', '1,234,56', '1,204.567', '192.168.1.10'])('keeps %s, which is no grouped tally, beside a stable result', (text) => {
+      const after = nodes([heading, node('done', { role: 'status', text: 'Record created' }), node('n', { text })]);
+      expect(describeDelta(nodes([heading]), after, false).appeared).toEqual([{ role: 'status', text: 'Record created' }, { text }]);
+    });
+
     it('drops a minted-id-only anchor when the opposite side has a stable result', () => {
       const before = nodes([heading, record]);
       const after = nodes([heading, canvasNode('n', mintedA)]);

@@ -199,15 +199,18 @@ const COUNT_TEXT: readonly RegExp[] = [
   /(?<!第\s*)\b\d+\s*(?:件|個|个|項目?|项目?|条|筆|笔|行|개|건|행)(?=$|[^\p{L}]|[の中をがはも]|[의이가을를은는도](?![가-힣])|记录|記錄|記録|结果|結果)/u,
 ];
 
+/** Digits alone, or in groups of three behind one separator a locale writes them with: `11`, `1,204`, `1.204`, `1 204`, `1'204`. The first group has no leading zero, so `0.750` stays a decimal. */
+const BARE_NUMBER = /^(?:\d+|[1-9]\d{0,2}([,. '\u2019])\d{3}(?:\1\d{3})*)$/;
+
 /**
- * A bare number is a badge or a tally, `11` unread, and reads differently
- * once the data changes; it is volatile when it is all the anchor has to say.
- * The same digit inside a named control, a status labelled "Counter" that
- * reads `1` after one increment, is the step's effect and stays.
+ * A bare number is a badge or a tally, `11` unread or `1,204` contacts, and
+ * reads differently once the data changes; it is volatile when it is all the
+ * anchor has to say. The same digit inside a named control, a status labelled
+ * "Counter" that reads `1` after one increment, is the step's effect and stays.
  */
 function isBareNumber(anchor: TraceTargetDescriptor): boolean {
   const label = anchor.name ?? anchor.text;
-  return label !== undefined && /^\d+$/.test(label) && anchor.testId === undefined && (anchor.name === undefined || anchor.text === undefined || anchor.name === anchor.text);
+  return label !== undefined && BARE_NUMBER.test(label) && anchor.testId === undefined && (anchor.name === undefined || anchor.text === undefined || anchor.name === anchor.text);
 }
 
 /** Whether an anchor's text, or a minted test id that is all it has, cannot read the same on the next run; `countIsData` decides an anchor holding a count. */
