@@ -9,7 +9,7 @@ import type { RecordedModel, DerivedReason } from '../cache/trace.ts';
 import { bound } from '../internal/text.ts';
 import { markAbandonedRejection, relocateStack } from '../internal/abandoned.ts';
 import { withAiTraceStep } from '../internal/ai-trace.ts';
-import { classifyError, redactErrorDetails, serializeError, TestError, withHint, type SerializedError } from '../internal/errors.ts';
+import { classifyError, redactErrorDetails, serializeError, TestError, truncateUtf8, withHint, type SerializedError } from '../internal/errors.ts';
 import { timestamp } from '../internal/ids.ts';
 import { withAbort } from '../internal/time.ts';
 import { sourceLocation, type SourceLocation } from '../internal/source.ts';
@@ -419,6 +419,9 @@ export interface AppLogRecord {
 /** Characters of an event's detail the report admits. */
 export const MAX_EVENT_DETAIL_CHARS = 300;
 
+/** Bytes of a step label a record keeps, the bound report-1 puts on it. */
+const MAX_LABEL_BYTES = 8192;
+
 /** Characters of a step label an error message quotes before clipping it. */
 const MAX_QUOTED_LABEL_CHARS = 80;
 
@@ -603,7 +606,7 @@ export class StepRecorder {
       index,
       kind: step.kind,
       api: step.api,
-      label: step.label,
+      label: truncateUtf8(step.label, MAX_LABEL_BYTES),
       ...(step.actor === undefined ? {} : { actor: step.actor }),
       ...(step.source === undefined ? {} : { source: step.source }),
       status: 'passed',
@@ -629,7 +632,7 @@ export class StepRecorder {
     for (const { line, at } of this.earlyNavigations.splice(0)) this.fileNavigation(record, line, at);
     if (stack !== undefined) this.stacks.set(record.id, stack);
     this.owners.set(record.id, this.owner);
-    this.publish(record, { phase: 'start', kind, api, label });
+    this.publish(record, { phase: 'start', kind, api, label: record.label });
     return record;
   }
 

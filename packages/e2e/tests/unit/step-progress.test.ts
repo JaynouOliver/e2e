@@ -1,9 +1,14 @@
 /** StepRecorder's live progress beyond the records: what a reporter hears while a step runs. */
 
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { StepRecorder, type StepProgress } from '@e2e-dev/core/lib/run/steps';
 import { AgentError } from '@e2e-dev/core/lib/agent/error';
+
+const SCHEMA_PATH = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'schema', 'report-v1.schema.json');
+const MAX_LABEL_LENGTH = (JSON.parse(readFileSync(SCHEMA_PATH, 'utf8')) as { $defs: { step: { properties: { label: { maxLength: number } } } } }).$defs.step.properties.label.maxLength;
 
 function recorder(): { steps: StepRecorder; heard: StepProgress[] } {
   const heard: StepProgress[] = [];
@@ -133,6 +138,24 @@ describe('StepRecorder progress identity', () => {
     expect(heard).toMatchObject([
       { phase: 'start', label: 'inspect [REDACTED]' },
       { phase: 'end', label: 'inspect [REDACTED]' },
+    ]);
+  });
+
+  it.each(['a', 'é', '界', '😀'])('records and publishes a label within the length the report schema allows, cut after redaction on a whole character (%s)', async (character) => {
+    const heard: StepProgress[] = [];
+    const steps = new StepRecorder('attempt', {
+      onProgress: (progress) => heard.push(progress),
+      redact: (text) => text.replaceAll('private-value', '[REDACTED]'),
+    });
+    await steps.run('locator', 'locator.click', `getByText("private-value: ${character.repeat(MAX_LABEL_LENGTH)}")`, async () => undefined);
+    const label = steps.all()[0]!.label;
+    const head = 'getByText("[REDACTED]: ';
+    const kept = Math.floor((MAX_LABEL_LENGTH - Buffer.byteLength(head)) / Buffer.byteLength(character));
+    expect(label).toBe(head + character.repeat(kept));
+    expect([...label].length).toBeLessThanOrEqual(MAX_LABEL_LENGTH);
+    expect(heard).toMatchObject([
+      { phase: 'start', label },
+      { phase: 'end', label },
     ]);
   });
 });
