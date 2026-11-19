@@ -783,6 +783,14 @@ describe('resolveConfig', () => {
     ).toThrow(/secret "admin.password" has the name of credential "admin"'s password handle; rename the secret/);
   });
 
+  it.each(['credentials', 'secrets'])('refuses %s that is not an object when the config loads', (key) => {
+    for (const [value, got] of [[null, 'null'], [5, '5'], [true, 'true'], ['abc', '"abc"'], [['value-1'], 'an array']] as const) {
+      expect(() => resolve(invalid({ [key]: value }))).toThrow(
+        expect.objectContaining({ code: 'INVALID_CONFIG', message: `${key} must be an object of ${key} by name, got ${got}` }),
+      );
+    }
+  });
+
   it('refuses two secrets that share an E2E_SECRET_* variable, naming the entries and never a value, whether or not it is set', () => {
     const values = ['secret-value-a1', 'secret-value-b2', 'secret-value-c3'];
     const colliding = { 'api-key': values[0]!, api_key: values[1]! };

@@ -744,6 +744,9 @@ function rejectDirectoryEntry(entry: string, projectRoot: string): void {
 
 function resolveProjectId(explicit: string | undefined, projectRoot: string): string {
   if (explicit !== undefined) {
+    if (typeof explicit !== 'string') {
+      throw new ConfigurationError('INVALID_CONFIG', `projectId must be a string, got ${describeValue(explicit)}`);
+    }
     if (explicit.length === 0 || explicit.length > 256) {
       throw new ConfigurationError('INVALID_CONFIG', 'projectId must be 1 through 256 characters');
     }
@@ -776,6 +779,12 @@ function resolveSecrets(
   const credentials = new Map<string, ResolvedCredential>();
   const secrets = new Map<string, ResolvedSecret>();
   const allSecrets = new Map<string, ResolvedSecret>();
+  for (const key of ['credentials', 'secrets'] as const) {
+    const value: unknown = raw[key];
+    if (value !== undefined && !isRecord(value)) {
+      throw new ConfigurationError('INVALID_CONFIG', `${key} must be an object of ${key} by name, got ${describeValue(value)}`);
+    }
+  }
   checkEnvNameCollisions('E2E_USER', 'credentials', Object.keys(raw.credentials ?? {}));
   checkEnvNameCollisions('E2E_SECRET', 'secrets', Object.keys(raw.secrets ?? {}));
   for (const [name, credential] of Object.entries(raw.credentials ?? {})) {

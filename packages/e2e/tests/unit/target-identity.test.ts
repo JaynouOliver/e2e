@@ -14,6 +14,7 @@ import { resolveConfig } from '../../src/config/resolve-run.ts';
 import { defineEngine } from '@e2e-dev/core/lib/engine/index';
 import { targetIdentity } from '@e2e-dev/core/lib/run/sessions';
 import type { Target } from '@e2e-dev/core/lib/types';
+import { invalid } from '../helpers/invalid.ts';
 
 const ROOT = '/tmp/e2e-target-identity';
 
@@ -77,5 +78,15 @@ describe('project id', () => {
     }
     expect(projectIdOf(ROOT)).toBe('unportable-66fbb7139eea721c50ae7e4574c29c33');
     expect(() => projectIdOf(ROOT, '')).toThrow(expect.objectContaining({ code: 'INVALID_CONFIG' }));
+  });
+
+  it.each([
+    [123, '123'],
+    [null, 'null'],
+    [['shop'], 'an array'],
+  ])('refuses %j, which is not a string, when the config loads', (projectId, got) => {
+    expect(() => projectIdOf(ROOT, invalid(projectId))).toThrow(
+      expect.objectContaining({ code: 'INVALID_CONFIG', message: `projectId must be a string, got ${got}` }),
+    );
   });
 });
