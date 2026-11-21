@@ -895,8 +895,17 @@ export class ActionDispatcher {
    * number picks the same one.
    */
   private placementOf({ node, observation }: Resolved): Placement {
-    const within = containerKey(node.ref.id, observation.nodes, observation.parents);
-    const position = describePosition(node, within, observation.nodes);
+    const { nodes, parents } = observation;
+    const within = containerKey(node.ref.id, nodes, parents);
+    const position = describePosition(node, within, nodes);
+    // A control that leads its row holds the row's first text, so its twins
+    // differ only by order: key it by the row's first text outside it, when
+    // that text tells it from every twin. One with no twin keeps its name
+    // alone, so a row's title is not keyed by the data after it.
+    if (position !== undefined) {
+      const outside = containerKey(node.ref.id, nodes, parents, true);
+      if (outside !== undefined && outside !== within && describePosition(node, outside, nodes) === undefined) return { within: outside };
+    }
     return {
       ...(within === undefined ? {} : { within }),
       ...(position === undefined ? {} : { position }),

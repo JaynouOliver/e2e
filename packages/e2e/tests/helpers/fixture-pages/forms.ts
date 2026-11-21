@@ -47,15 +47,25 @@ const UNANCHORED_PAGE = `<!doctype html>
  * The widget appended at body level is what a chat bubble, a consent frame, or a
  * React portal does, and it shifts every nth-child index under body. `?still=1`
  * leaves it out, for a bare point that would miss a row the widget moved.
+ *
+ * `?lead=1` puts the button before its row's label, as a table whose first
+ * column holds the row's action does, and adds a row led by a button no
+ * other row has and two rows led by the same button with the same text
+ * after it.
  */
-function renderRepeats(reverse: boolean, widget: boolean): string {
+const LEAD_ROWS = `    <li><button onclick="pick('none')">Clear</button> <span>No offer</span></li>
+    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
+    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
+`;
+
+function renderRepeats(reverse: boolean, widget: boolean, lead: boolean): string {
   const offers = reverse ? ['C', 'B', 'A'] : ['A', 'B', 'C'];
   const rows = offers
-    .map(
-      (offer) =>
-        `    <li><span>Offer ${offer}</span> <button name="reserve-${offer.toLowerCase()}" ` +
-        `onclick="pick('${offer}')">Reserve now</button></li>`,
-    )
+    .map((offer) => {
+      const label = `<span>Offer ${offer}</span>`;
+      const button = `<button name="reserve-${offer.toLowerCase()}" onclick="pick('${offer}')">Reserve now</button>`;
+      return `    <li>${lead ? `${button} ${label}` : `${label} ${button}`}</li>`;
+    })
     .join('\n');
   return `<!doctype html>
 <html>
@@ -64,7 +74,7 @@ function renderRepeats(reverse: boolean, widget: boolean): string {
   <output id="picked" role="status" aria-label="Picked">none</output>
   <ul style="list-style:none;padding:0">
 ${rows}
-  </ul>
+${lead ? LEAD_ROWS : ''}  </ul>
   <script>
     function pick(offer) {
       document.getElementById('picked').textContent = offer;
@@ -357,6 +367,10 @@ export const FORM_PAGES: Record<string, PageRenderer> = {
   '/one-time-code': () => renderOneTimeCode(String(randomInt(1_000_000)).padStart(6, '0')),
   '/unanchored': constant(UNANCHORED_PAGE),
   '/repeats': (_state, url) =>
-    renderRepeats(url.searchParams.get('reverse') === '1' || url.searchParams.get('variant') === 'b', url.searchParams.get('still') !== '1'),
+    renderRepeats(
+      url.searchParams.get('reverse') === '1' || url.searchParams.get('variant') === 'b',
+      url.searchParams.get('still') !== '1',
+      url.searchParams.get('lead') === '1',
+    ),
   '/twins-form': (_state, url) => renderTwinsForm(url.searchParams.get('variant')),
 };

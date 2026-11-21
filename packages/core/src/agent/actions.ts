@@ -116,20 +116,28 @@ const MAX_WITHIN_CHARS = 80;
  * renders whichever rows are near the viewport, so its first row is a scroll
  * position, not a place, and the same row would read as `Row 0512 in Row
  * 0500` one time and `in Row 0501` the next. Its own label still keys it.
+ *
+ * A control that leads its row (`<tr><td><button>Archive</button></td>
+ * <td>Acme</td></tr>`) holds the row's first text itself, its name or the
+ * glyph it shows, which tells no row from the next. `pastOwn` keys it by the
+ * row's first text outside the control. A node that is itself a row has no
+ * such text: what follows it in its list is the next row.
  */
 export function containerKey(
   id: string,
   nodes: ReadonlyMap<string, RedactedNode>,
   parents: ReadonlyMap<string, string>,
+  pastOwn = false,
 ): string | undefined {
   const node = nodes.get(id);
   const own = node === undefined ? '' : squash(node.name ?? node.text ?? '');
+  const skip = pastOwn && !CONTAINER_ROLES.has(node?.role ?? '') ? id : undefined;
   let came = id;
   let cursor = parents.get(id);
   while (cursor !== undefined) {
     const container = nodes.get(cursor);
     if (container !== undefined && CONTAINER_ROLES.has(container.role ?? '')) {
-      const key = (namedAfterTwinOf(container, nodes.get(came)) ? undefined : firstLeafText(container)) ?? ownLabel(container);
+      const key = (namedAfterTwinOf(container, nodes.get(came)) ? undefined : firstLeafText(container, skip)) ?? ownLabel(container);
       const clean = key === undefined ? '' : bound(collapseText(key), MAX_WITHIN_CHARS);
       return clean === '' || squash(clean) === own ? undefined : clean;
     }
@@ -164,12 +172,13 @@ export function parentsOf(nodes: ReadonlyMap<string, RedactedNode>): ReadonlyMap
   return parents;
 }
 
-/** The first leaf's own text under a container, depth-first. */
-function firstLeafText(node: RedactedNode): string | undefined {
+/** The first leaf's own text under a container, depth-first, outside the node with id `skip`. */
+function firstLeafText(node: RedactedNode, skip?: string): string | undefined {
   for (const child of node.children ?? []) {
+    if (child.ref.id === skip) continue;
     const own = (child.children?.length ?? 0) === 0 ? (child.text ?? child.name ?? '').trim() : '';
     if (own !== '') return own;
-    const deeper = firstLeafText(child);
+    const deeper = firstLeafText(child, skip);
     if (deeper !== undefined) return deeper;
   }
   return undefined;

@@ -267,9 +267,12 @@ function candidatesWithin(within: string | undefined, nodes: ReadonlyMap<string,
   if (within === undefined) return candidates;
   // A recorded container key must hold: the same "Delete" in another row is
   // a different control. Checked against the tree the candidates came from,
-  // never guessed.
+  // never guessed. A candidate that leads its row is also read by the row's
+  // first text outside it, as the recorder keys one that text tells from its twins.
   const parents = parentsOf(nodes);
-  return candidates.filter((candidate) => containerKey(candidate.id, nodes, parents) === within);
+  return candidates.filter(
+    (candidate) => containerKey(candidate.id, nodes, parents) === within || containerKey(candidate.id, nodes, parents, true) === within,
+  );
 }
 
 function tierMatches(tier: DescriptorTier, candidates: readonly DescribedNode[]): string[] {

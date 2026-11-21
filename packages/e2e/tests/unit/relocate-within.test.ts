@@ -74,6 +74,64 @@ describe('container keys', () => {
     expect(relocateDescriptor({ role: 'button', within: within!, position: position! }, live.nodes)).toEqual({ kind: 'found', id: 'b-Alpha' });
   });
 
+  /** `<tr><td><button>Archive</button></td><td>Acme</td><td>Open</td></tr>` per customer; `text` is what the button shows, its name or a glyph under an `aria-label`. */
+  function leadingRows(text: string, order: readonly string[]): { nodes: Map<string, RedactedNode>; parents: Map<string, string> } {
+    const nodes = new Map<string, RedactedNode>();
+    const parents = new Map<string, string>();
+    for (const customer of order) {
+      const button: SemanticNode = { ref: { id: `b-${customer}`, revision: 'r' }, role: 'button', name: 'Archive', text };
+      const action: SemanticNode = { ref: { id: `a-${customer}`, revision: 'r' }, role: 'cell', name: 'Archive', children: [button] };
+      const name: SemanticNode = { ref: { id: `n-${customer}`, revision: 'r' }, role: 'cell', text: customer };
+      const status: SemanticNode = { ref: { id: `s-${customer}`, revision: 'r' }, role: 'cell', text: 'Open' };
+      const row: SemanticNode = { ref: { id: `r-${customer}`, revision: 'r' }, role: 'row', name: `Archive ${customer} Open`, children: [action, name, status] };
+      for (const node of [button, action, name, status, row]) nodes.set(node.ref.id, redacted(node));
+      parents.set(button.ref.id, action.ref.id);
+      for (const cell of [action, name, status]) parents.set(cell.ref.id, row.ref.id);
+    }
+    return { nodes, parents };
+  }
+
+  it.each([
+    ['its name', 'Archive', undefined],
+    ['a glyph', '\u00d7', '\u00d7'],
+  ])('keys a control that leads its row and shows %s by the row\'s first text outside it, and finds it after the rows shift', (_shows, text, ownKey) => {
+    const recorded = leadingRows(text, ['Globex', 'Acme', 'Initech']);
+    expect(containerKey('b-Acme', recorded.nodes, recorded.parents)).toBe(ownKey);
+    expect(containerKey('b-Acme', recorded.nodes, recorded.parents, true)).toBe('Acme');
+    expect(describePosition(recorded.nodes.get('b-Acme')!, 'Acme', recorded.nodes)).toBeUndefined();
+
+    const live = leadingRows(text, ['Stark', 'Globex', 'Acme']);
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Acme' }, live.nodes)).toEqual({ kind: 'found', id: 'b-Acme' });
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Initech' }, live.nodes)).toEqual({ kind: 'failed', failure: 'target-not-found' });
+  });
+
+  it('replays an entry recorded by the glyph and a place as it did before', () => {
+    const live = leadingRows('\u00d7', ['Stark', 'Globex', 'Acme']);
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: '\u00d7', position: { index: 1, of: 3 } }, live.nodes)).toEqual({ kind: 'found', id: 'b-Globex' });
+  });
+
+  it('does not read a row that is itself the target by the row after it', () => {
+    // Cards that share a label, tapped as a whole: what follows the first one in the list is the next card.
+    const cards = (order: readonly string[]) => {
+      const nodes = new Map<string, RedactedNode>();
+      const rows = order.map((customer): SemanticNode => {
+        const title: SemanticNode = { ref: { id: `t-${customer}`, revision: 'r' }, role: 'text', text: customer };
+        nodes.set(title.ref.id, redacted(title));
+        return { ref: { id: `c-${customer}`, revision: 'r' }, role: 'group', name: 'Card', children: [title] };
+      });
+      for (const row of rows) nodes.set(row.ref.id, redacted(row));
+      nodes.set('list', redacted({ ref: { id: 'list', revision: 'r' }, role: 'group', children: rows }));
+      return { nodes, parents: new Map(rows.map((row) => [row.ref.id, 'list'])) };
+    };
+    const recorded = cards(['Globex', 'Acme']);
+    expect(containerKey('c-Globex', recorded.nodes, recorded.parents)).toBe('Globex');
+    expect(containerKey('c-Globex', recorded.nodes, recorded.parents, true)).toBe('Globex');
+
+    // A new card on top: the card before Globex is not Globex.
+    const live = cards(['Stark', 'Globex', 'Acme']);
+    expect(relocateDescriptor({ role: 'group', name: 'Card', within: 'Globex' }, live.nodes)).toEqual({ kind: 'failed', failure: 'target-not-found' });
+  });
+
   it('does not key a row of a windowed list by whichever twin row is rendered first', () => {
     // An Android FlatList: an unnamed group of group rows, the rendered window moving with the scroll.
     const list = (first: number) => {

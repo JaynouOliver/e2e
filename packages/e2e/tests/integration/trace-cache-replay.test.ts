@@ -171,6 +171,16 @@ describe('trace cache: every flow records on the first run and replays without a
     expect(entry!.payload.actions[0]).toMatchObject({ name: 'tap', target: { role: 'button', name: 'Reserve now', within: 'Offer B' } });
   });
 
+  it('records a repeated control that leads its row by the row when the row\'s next text tells it apart, by its place when it does not, and a lone one by its name', () => {
+    const [entry] = entriesFor(project, 'reserves offer A from the button that leads its row');
+    const targets = entry!.payload.actions.map((action) => ('target' in action ? action.target : undefined));
+    expect(targets).toEqual([
+      { role: 'button', name: 'Clear' },
+      { role: 'button', name: 'Hold', position: { index: 1, of: 2 } },
+      { role: 'button', name: 'Reserve now', within: 'Offer A' },
+    ]);
+  });
+
   it('keeps the two entries of the mixed test apart and re-stages both after the replay', () => {
     const entries = entriesFor(project, 'mixes deterministic and agent steps');
     const anchors = entries.map((entry) => entry.payload.endAnchors?.find((anchor) => anchor.name === 'Counter')?.text).toSorted();
