@@ -88,6 +88,8 @@ export type RecordableAction =
 /** Where the node sat when it was acted on: its container's key and its place among identical twins. */
 export interface Placement {
   readonly within?: string;
+  /** `within` was read past the node itself, which leads its container. */
+  readonly leads?: true;
   readonly position?: TracePosition;
 }
 
@@ -362,6 +364,7 @@ function describePlaced(
   return {
     ...described,
     ...(placement.within === undefined ? {} : { within: bound(redaction.redact(placement.within), MAX_WITHIN_CHARS) }),
+    ...(placement.leads === undefined ? {} : { leads: placement.leads }),
     ...(placement.position === undefined ? {} : { position: placement.position }),
   };
 }

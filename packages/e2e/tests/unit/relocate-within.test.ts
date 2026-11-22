@@ -98,11 +98,17 @@ describe('container keys', () => {
     const recorded = leadingRows(text, ['Globex', 'Acme', 'Initech']);
     expect(containerKey('b-Acme', recorded.nodes, recorded.parents)).toBe(ownKey);
     expect(containerKey('b-Acme', recorded.nodes, recorded.parents, true)).toBe('Acme');
-    expect(describePosition(recorded.nodes.get('b-Acme')!, 'Acme', recorded.nodes)).toBeUndefined();
+    expect(describePosition(recorded.nodes.get('b-Acme')!, 'Acme', recorded.nodes, true)).toBeUndefined();
 
     const live = leadingRows(text, ['Stark', 'Globex', 'Acme']);
-    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Acme' }, live.nodes)).toEqual({ kind: 'found', id: 'b-Acme' });
-    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Initech' }, live.nodes)).toEqual({ kind: 'failed', failure: 'target-not-found' });
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Acme', leads: true }, live.nodes)).toEqual({ kind: 'found', id: 'b-Acme' });
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Initech', leads: true }, live.nodes)).toEqual({ kind: 'failed', failure: 'target-not-found' });
+  });
+
+  it('matches an entry recorded without the mark by the row\'s first text only, as before', () => {
+    // Recorded when the label came first; the button now leads its row. The old key no longer holds, so it hands off.
+    const live = leadingRows('Archive', ['Stark', 'Globex', 'Acme']);
+    expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Acme' }, live.nodes)).toEqual({ kind: 'failed', failure: 'target-not-found' });
   });
 
   it('replays an entry recorded by the glyph and a place as it did before', () => {

@@ -904,7 +904,9 @@ export class ActionDispatcher {
     // alone, so a row's title is not keyed by the data after it.
     if (position !== undefined) {
       const outside = containerKey(node.ref.id, nodes, parents, true);
-      if (outside !== undefined && outside !== within && describePosition(node, outside, nodes) === undefined) return { within: outside };
+      if (outside !== undefined && outside !== within && describePosition(node, outside, nodes, true) === undefined) {
+        return { within: outside, leads: true };
+      }
     }
     return {
       ...(within === undefined ? {} : { within }),

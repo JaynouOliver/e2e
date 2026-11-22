@@ -329,6 +329,7 @@ function sameTarget(a: TraceTargetDescriptor | undefined, b: TraceTargetDescript
   if (a === undefined || b === undefined) return a === b;
   return (
     DESCRIPTOR_FIELDS.every((field) => a[field] === b[field]) &&
+    a.leads === b.leads &&
     a.position?.index === b.position?.index &&
     a.position?.of === b.position?.of
   );

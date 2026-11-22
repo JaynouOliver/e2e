@@ -250,7 +250,7 @@ function matchingIds(
   descriptor: TraceTargetDescriptor,
   nodes: ReadonlyMap<string, RedactedNode>,
 ): { readonly ids: readonly string[]; readonly tier?: DescriptorTier } {
-  const keyed = candidatesWithin(descriptor.within, nodes);
+  const keyed = candidatesWithin(descriptor.within, descriptor.leads === true, nodes);
   for (const tier of descriptorTiers(descriptor)) {
     // A shape is tried only where a place means something, as for an unnamed
     // control: alone when recorded (`describePosition`), or in a named container.
@@ -262,17 +262,15 @@ function matchingIds(
 }
 
 /** The candidates in the recorded container. */
-function candidatesWithin(within: string | undefined, nodes: ReadonlyMap<string, RedactedNode>): readonly DescribedNode[] {
+function candidatesWithin(within: string | undefined, leads: boolean, nodes: ReadonlyMap<string, RedactedNode>): readonly DescribedNode[] {
   const candidates = describeNodes(nodes);
   if (within === undefined) return candidates;
   // A recorded container key must hold: the same "Delete" in another row is
   // a different control. Checked against the tree the candidates came from,
-  // never guessed. A candidate that leads its row is also read by the row's
-  // first text outside it, as the recorder keys one that text tells from its twins.
+  // never guessed. An entry recorded for a control that leads its row reads
+  // each candidate's key the way the recorder did, past the candidate itself.
   const parents = parentsOf(nodes);
-  return candidates.filter(
-    (candidate) => containerKey(candidate.id, nodes, parents) === within || containerKey(candidate.id, nodes, parents, true) === within,
-  );
+  return candidates.filter((candidate) => containerKey(candidate.id, nodes, parents, leads) === within);
 }
 
 function tierMatches(tier: DescriptorTier, candidates: readonly DescribedNode[]): string[] {
@@ -300,6 +298,7 @@ export function describePosition(
   node: RedactedNode,
   within: string | undefined,
   nodes: ReadonlyMap<string, RedactedNode>,
+  leads = false,
 ): TracePosition | undefined {
   const described = describeTarget(node);
   if (described === undefined || (described.role === undefined && isAnonymous(described))) return undefined;
@@ -307,12 +306,12 @@ export function describePosition(
   // test id shape, has no identity to match alone; its position is what
   // makes it relocatable, so it is counted among its twins on that tier even
   // when it is the only one, and described with a placeholder position to do so.
-  const probe = { ...described, ...(within === undefined ? {} : { within }), position: { index: 0, of: 1 } };
+  const probe = { ...described, ...(within === undefined ? {} : { within }), ...(leads ? { leads } : {}), position: { index: 0, of: 1 } };
   const tiers = descriptorTiers(probe);
   const loosest = tiers[tiers.length - 1];
   if (loosest === undefined) return undefined;
   const byPlace = matchesByPlace(loosest);
-  const ids = byPlace ? tierMatches(loosest, candidatesWithin(within, nodes)) : matchingIds(probe, nodes).ids;
+  const ids = byPlace ? tierMatches(loosest, candidatesWithin(within, leads, nodes)) : matchingIds(probe, nodes).ids;
   if (ids.length < (byPlace ? 1 : 2) || ids.length > MAX_POSITIONED_TWINS) return undefined;
   const index = ids.indexOf(node.ref.id);
   return index === -1 ? undefined : { index, of: ids.length };

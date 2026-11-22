@@ -177,7 +177,7 @@ describe('trace cache: every flow records on the first run and replays without a
     expect(targets).toEqual([
       { role: 'button', name: 'Clear' },
       { role: 'button', name: 'Hold', position: { index: 1, of: 2 } },
-      { role: 'button', name: 'Reserve now', within: 'Offer A' },
+      { role: 'button', name: 'Reserve now', within: 'Offer A', leads: true },
     ]);
   });
 

@@ -368,7 +368,7 @@ function readDescriptor(document: unknown): TraceTargetDescriptor | undefined {
     return undefined;
   }
   const raw = document as Record<string, unknown>;
-  const descriptor: Record<string, string | TracePosition | readonly TraceAnchorState[]> = {};
+  const descriptor: Record<string, string | true | TracePosition | readonly TraceAnchorState[]> = {};
   for (const field of DESCRIPTOR_FIELDS) {
     const value = raw[field];
     if (value === undefined) continue;
@@ -380,6 +380,10 @@ function readDescriptor(document: unknown): TraceTargetDescriptor | undefined {
     const position = readPosition(raw['position']);
     if (position === undefined) return undefined;
     descriptor['position'] = position;
+  }
+  if (raw['leads'] !== undefined) {
+    if (raw['leads'] !== true || descriptor['within'] === undefined) return undefined;
+    descriptor['leads'] = true;
   }
   if (raw['states'] !== undefined) {
     const states = readStates(raw['states']);
