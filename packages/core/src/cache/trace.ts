@@ -138,9 +138,10 @@ export interface TraceTargetDescriptor {
   /** Key of the container the target sat in (a row's first cell); relocation requires the same. */
   readonly within?: string;
   /**
-   * Set when the target was the first text in its container, so `within` is
-   * the container's first text outside the target. Relocation reads a
-   * candidate's key the same way; an entry without it is matched as before.
+   * Set only for a control that leads its row and has same-named twins, when
+   * the row's first text outside the control tells it from all of them.
+   * `within` is then that text. Relocation reads a candidate's key the same
+   * way; an entry without it is matched as before.
    */
   readonly leads?: true;
   /**

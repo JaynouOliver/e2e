@@ -129,7 +129,7 @@ export function containerKey(
   id: string,
   nodes: ReadonlyMap<string, RedactedNode>,
   parents: ReadonlyMap<string, string>,
-  pastOwn = false,
+  { pastOwn = false }: { readonly pastOwn?: boolean } = {},
 ): string | undefined {
   const node = nodes.get(id);
   const own = node === undefined ? '' : squash(node.name ?? node.text ?? '');

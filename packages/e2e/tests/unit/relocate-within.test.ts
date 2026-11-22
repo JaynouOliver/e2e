@@ -97,8 +97,8 @@ describe('container keys', () => {
   ])('keys a control that leads its row and shows %s by the row\'s first text outside it, and finds it after the rows shift', (_shows, text, ownKey) => {
     const recorded = leadingRows(text, ['Globex', 'Acme', 'Initech']);
     expect(containerKey('b-Acme', recorded.nodes, recorded.parents)).toBe(ownKey);
-    expect(containerKey('b-Acme', recorded.nodes, recorded.parents, true)).toBe('Acme');
-    expect(describePosition(recorded.nodes.get('b-Acme')!, 'Acme', recorded.nodes, true)).toBeUndefined();
+    expect(containerKey('b-Acme', recorded.nodes, recorded.parents, { pastOwn: true })).toBe('Acme');
+    expect(describePosition(recorded.nodes.get('b-Acme')!, 'Acme', recorded.nodes, { leads: true })).toBeUndefined();
 
     const live = leadingRows(text, ['Stark', 'Globex', 'Acme']);
     expect(relocateDescriptor({ role: 'button', name: 'Archive', within: 'Acme', leads: true }, live.nodes)).toEqual({ kind: 'found', id: 'b-Acme' });
@@ -131,7 +131,7 @@ describe('container keys', () => {
     };
     const recorded = cards(['Globex', 'Acme']);
     expect(containerKey('c-Globex', recorded.nodes, recorded.parents)).toBe('Globex');
-    expect(containerKey('c-Globex', recorded.nodes, recorded.parents, true)).toBe('Globex');
+    expect(containerKey('c-Globex', recorded.nodes, recorded.parents, { pastOwn: true })).toBe('Globex');
 
     // A new card on top: the card before Globex is not Globex.
     const live = cards(['Stark', 'Globex', 'Acme']);

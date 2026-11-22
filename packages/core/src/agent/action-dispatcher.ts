@@ -903,8 +903,8 @@ export class ActionDispatcher {
     // that text tells it from every twin. One with no twin keeps its name
     // alone, so a row's title is not keyed by the data after it.
     if (position !== undefined) {
-      const outside = containerKey(node.ref.id, nodes, parents, true);
-      if (outside !== undefined && outside !== within && describePosition(node, outside, nodes, true) === undefined) {
+      const outside = containerKey(node.ref.id, nodes, parents, { pastOwn: true });
+      if (outside !== undefined && outside !== within && describePosition(node, outside, nodes, { leads: true }) === undefined) {
         return { within: outside, leads: true };
       }
     }

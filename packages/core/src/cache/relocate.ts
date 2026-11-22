@@ -270,7 +270,7 @@ function candidatesWithin(within: string | undefined, leads: boolean, nodes: Rea
   // never guessed. An entry recorded for a control that leads its row reads
   // each candidate's key the way the recorder did, past the candidate itself.
   const parents = parentsOf(nodes);
-  return candidates.filter((candidate) => containerKey(candidate.id, nodes, parents, leads) === within);
+  return candidates.filter((candidate) => containerKey(candidate.id, nodes, parents, { pastOwn: leads }) === within);
 }
 
 function tierMatches(tier: DescriptorTier, candidates: readonly DescribedNode[]): string[] {
@@ -298,7 +298,7 @@ export function describePosition(
   node: RedactedNode,
   within: string | undefined,
   nodes: ReadonlyMap<string, RedactedNode>,
-  leads = false,
+  { leads = false }: { readonly leads?: boolean } = {},
 ): TracePosition | undefined {
   const described = describeTarget(node);
   if (described === undefined || (described.role === undefined && isAnonymous(described))) return undefined;
