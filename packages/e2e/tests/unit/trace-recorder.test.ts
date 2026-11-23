@@ -413,7 +413,9 @@ describe('TraceRecorder: bare-point drags', () => {
     expect(broken((action) => { action['from'] = { x: 200, y: 250 }; })).toBeUndefined();
     expect(broken((action) => { action['to'] = { point: { x: 700, y: 600 }, within: { target: { role: 'img' }, fx: 0, fy: 2 } }; })).toBeUndefined();
   });
+});
 
+describe('TraceRecorder: a control that leads its row', () => {
   it('reads `leads` only as true beside a `within`', () => {
     const recorder = makeRecorder();
     recorder.record({ name: 'tap', node: upgradeButton, within: 'Acme', leads: true });
