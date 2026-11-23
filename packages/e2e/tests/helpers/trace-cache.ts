@@ -58,13 +58,18 @@ function nodeIdsFor(prompt: string, pattern: RegExp): string[] {
     .map((line) => /#(\S+)/u.exec(line)![1]!);
 }
 
-/** The "Reserve now" button in the row whose label is `offer`: after the label, or before it when the button `leads` the row. */
-function reserveButtonFor(prompt: string, offer: string, leads = false): string {
+/** The button named `name` in the row whose label is `label`: after the label, or before it when the button `leads` the row. */
+function rowButtonFor(prompt: string, name: string, label: string, leads = false): string {
   const lines = prompt.split('\n');
-  const row = lines.findIndex((line) => line.includes(`text="Offer ${offer}"`));
-  const isButton = (line: string) => line.includes('button "Reserve now"');
+  const row = lines.findIndex((line) => line.includes(`text="${label}"`));
+  const isButton = (line: string) => line.includes(`button "${name}"`);
   const button = leads ? lines.slice(0, row).findLast(isButton) : lines.slice(row + 1).find(isButton);
   return /#(\S+)/u.exec(button!)![1]!;
+}
+
+/** The "Reserve now" button in the row whose label is `offer`. */
+function reserveButtonFor(prompt: string, offer: string, leads = false): string {
+  return rowButtonFor(prompt, 'Reserve now', `Offer ${offer}`, leads);
 }
 
 /**
@@ -208,19 +213,20 @@ export const FLOWS: readonly Flow[] = [
     title: 'reserves offer A from the button that leads its row',
     // As above, and the button is its row's first text: the label after it is what names the row.
     open: () => '/repeats?lead=1',
-    body: `  await agent.act('clear the pick, hold it, then reserve offer A with the leading button');
+    body: `  await agent.act('clear the pick, hold it, dismiss note two, then reserve offer A with the leading button');
   await expect(screen.getByRole('status', { name: 'Picked' })).toHaveText('A');`,
     script: {
-      'clear the pick, hold it, then reserve offer A with the leading button': {
+      'clear the pick, hold it, dismiss note two, then reserve offer A with the leading button': {
         act: (call) => [
           tap(nodeIdFor(call.prompt, /button "Clear"/u)),
           tap(nodeIdsFor(call.prompt, /button "Hold"/u)[1]!),
+          tap(rowButtonFor(call.prompt, 'Dismiss', 'Note two', true)),
           tap(reserveButtonFor(call.prompt, 'A', true)),
         ],
         done: /"Picked" text="A"/u,
       },
     },
-    actions: [3],
+    actions: [4],
   },
   {
     title: 'clears a field',

@@ -413,4 +413,20 @@ describe('TraceRecorder: bare-point drags', () => {
     expect(broken((action) => { action['from'] = { x: 200, y: 250 }; })).toBeUndefined();
     expect(broken((action) => { action['to'] = { point: { x: 700, y: 600 }, within: { target: { role: 'img' }, fx: 0, fy: 2 } }; })).toBeUndefined();
   });
+
+  it('reads `leads` only as true beside a `within`', () => {
+    const recorder = makeRecorder();
+    recorder.record({ name: 'tap', node: upgradeButton, within: 'Acme', leads: true });
+    const entry = JSON.parse(JSON.stringify(buildTraceEntry(recorder.finalize(conclusion)!)));
+    const read = (patch: (target: Record<string, unknown>) => void) => {
+      const copy = JSON.parse(JSON.stringify(entry));
+      patch(copy.payload.actions[0].target);
+      return readTraceEntry(copy);
+    };
+    expect(read(() => {})?.payload.actions[0]).toMatchObject({ target: { within: 'Acme', leads: true } });
+    expect(read((target) => { delete target['within']; })).toBeUndefined();
+    for (const leads of [1, false, 'true', null]) {
+      expect(read((target) => { target['leads'] = leads; }), JSON.stringify(leads)).toBeUndefined();
+    }
+  });
 });

@@ -33,6 +33,13 @@ const UNANCHORED_PAGE = `<!doctype html>
 </body>
 </html>`;
 
+const LEAD_ROWS = `    <li><button onclick="pick('none')">Clear</button> <span>No offer</span></li>
+    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
+    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
+    <li><button aria-label="Dismiss" onclick="pick('note one')">\u00d7</button> <span>Note one</span></li>
+    <li><button aria-label="Dismiss" onclick="pick('note two')">\u00d7</button> <span>Note two</span></li>
+`;
+
 /**
  * A control repeated per row, as a listing repeats one reservation button. Every
  * query derived from any row matches all of them, so the sweep can only resolve
@@ -50,14 +57,9 @@ const UNANCHORED_PAGE = `<!doctype html>
  *
  * `?lead=1` puts the button before its row's label, as a table whose first
  * column holds the row's action does, and adds a row led by a button no
- * other row has and two rows led by the same button with the same text
- * after it.
+ * other row has, two rows led by the same button with the same text after
+ * it, and two rows led by the same glyph button with different text after it.
  */
-const LEAD_ROWS = `    <li><button onclick="pick('none')">Clear</button> <span>No offer</span></li>
-    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
-    <li><button onclick="pick('held')">Hold</button> <span>One day</span></li>
-`;
-
 function renderRepeats(reverse: boolean, widget: boolean, lead: boolean): string {
   const offers = reverse ? ['C', 'B', 'A'] : ['A', 'B', 'C'];
   const rows = offers
