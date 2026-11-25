@@ -11,7 +11,7 @@ import path from 'node:path';
 import type { ElementHandle, Locator as PwLocator, Page } from 'playwright-core';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { EngineError, TestError, type LocatorAction } from '@e2e-dev/core/engine';
-import { classifyActionError, dispatchLocatorAction, dispatchPointerAction } from '../../src/actions.ts';
+import { classifyActionError, dispatchLocatorAction, dispatchPointerAction, insertedCharacter } from '../../src/actions.ts';
 import { dispatchedInput, type ActionTarget } from '../../src/support.ts';
 
 /** A real file: setInputFiles stats every path before it touches the element. */
@@ -232,6 +232,20 @@ describe('dispatchedInput', () => {
   });
 });
 
+describe('insertedCharacter', () => {
+  it.each([' ', '~', 'a', '$', '+', 'Enter', 'Control+a', 'Shift++', 'Shift+Tab'])('leaves %j to a key press', (key) => {
+    expect(insertedCharacter(key)).toBeUndefined();
+  });
+
+  it.each(['é', 'ß', '€', '中', '😀', '\u00a0', '¡'])('inserts %j as text', (key) => {
+    expect(insertedCharacter(key)).toBe(key);
+  });
+
+  it.each(['Control+é', 'Shift+é', 'ControlOrMeta+Alt+中'])('refuses %j, which has no key to hold a modifier over', (key) => {
+    expect(() => insertedCharacter(key)).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CAPABILITY' }));
+  });
+});
+
 describe('dispatchLocatorAction', () => {
   const lookup = () => {
     throw new Error('no second target in these cases');
@@ -239,6 +253,7 @@ describe('dispatchLocatorAction', () => {
   const OPERATION = { timeoutMs: 7, signal: new AbortController().signal };
 
   it.each([
+    [{ kind: 'press', key: 'Control+a' }, 'press', ['Control+a', { timeout: 7 }]],
     [{ kind: 'longPress', durationMs: 900 }, 'click', [{ timeout: 7, delay: 900 }]],
     [{ kind: 'clear' }, 'fill', ['', { timeout: 7 }]],
     [{ kind: 'selectOption', value: 'Blue' }, 'selectOption', [{ label: 'Blue' }, { timeout: 7 }]],

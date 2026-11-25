@@ -46,7 +46,7 @@ import {
   type ViewportSize,
 } from '@e2e-dev/core/engine';
 import { matchesText } from '@e2e-dev/core/engine';
-import { classifyActionError, classifyInputError, dispatchLocatorAction, dispatchPointerAction } from './actions.ts';
+import { classifyActionError, classifyInputError, dispatchLocatorAction, dispatchPointerAction, insertedCharacter } from './actions.ts';
 import { BrowserConnection, connectCdp, defaultChromiumSandbox, type BrowserLaunchOptions, type BrowserName } from './browser-connection.ts';
 import { grantedPermissions, grantPermissions } from './permissions.ts';
 import { AttemptSession, type AttemptTab, type StorageState } from './attempt-session.ts';
@@ -1188,10 +1188,21 @@ export class PlaywrightSurface {
         }
         const session = this.requireSession();
         const { refs } = session;
+        const text = action.kind === 'press' ? insertedCharacter(action.key) : undefined;
         return refs.lookup(ref).then(async (target) => {
           currentOperation.signal.throwIfAborted();
           try {
-            await dispatchLocatorAction(target, action, currentOperation, (other) => refs.lookup(other));
+            if (text === undefined) {
+              await dispatchLocatorAction(target, action, currentOperation, (other) => refs.lookup(other));
+            } else {
+              await dispatchLocatorAction(target, { kind: 'focus' }, currentOperation, (other) => refs.lookup(other));
+              // Inserted text lands on whatever holds focus, and a node that cannot take focus leaves it on another field.
+              const focused = target.kind === 'locator'
+                ? await target.locator.evaluate(holdsFocus, undefined, { timeout: currentOperation.timeoutMs })
+                : await target.element.evaluate(holdsFocus);
+              if (!focused) throw notInsertable(text);
+              await this.insertCharacter(page, text);
+            }
           } catch (cause) {
             // The input went out and its own tab closed: closing was what it did.
             if (dispatchedInput(cause) && session.tabClosed(page)) return;
@@ -1245,8 +1256,20 @@ export class PlaywrightSurface {
   pressKey(key: string, operation: OperationContext): Promise<void> {
     return this.acted(operation, this.guard(operation, 'keyboard.press', () => {
       this.requireSession().requireObservation();
-      return this.requirePage().keyboard.press(key);
+      const text = insertedCharacter(key);
+      const page = this.requirePage();
+      return text === undefined ? page.keyboard.press(key) : this.insertCharacter(page, text);
     }, classifyInputError));
+  }
+
+  /**
+   * Inserts a `press` character Playwright has no key for. Inserted text
+   * sends no key event, so only a text field takes it: any other focus is
+   * refused rather than "pressed" into nothing.
+   */
+  private async insertCharacter(page: Page, text: string): Promise<void> {
+    await this.requireEditableFocus(page, text);
+    await page.keyboard.insertText(text);
   }
 
   /**
@@ -1256,12 +1279,15 @@ export class PlaywrightSurface {
    * widget with a tabindex and its own key handling), because focusing it is
    * how the app opted into keys. Focus on the body, a button, a link, a
    * select, or a non-text input means the keystrokes would be discarded.
+   * With `inserted`, a character that arrives as text with no key event,
+   * only an input of a free-text type, a textarea, or a contenteditable host
+   * counts: a number or date input drops such a character.
    */
-  private async requireEditableFocus(page: Page): Promise<void> {
+  private async requireEditableFocus(page: Page, inserted?: string): Promise<void> {
     const editable = await Promise.all(
       page.frames().map((frame) =>
         frame
-          .evaluate((key) => {
+          .evaluate(({ key, textOnly }) => {
             const recorded: WeakMap<Element, ShadowRoot> | undefined = Reflect.get(globalThis, Symbol.for(key));
             let active = document.activeElement;
             while (active !== null) {
@@ -1272,19 +1298,23 @@ export class PlaywrightSurface {
             }
             if (active === null || active === document.body || active === document.documentElement) return false;
             if (active instanceof HTMLInputElement) {
-              return !active.disabled && !active.readOnly && !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image', 'range', 'color'].includes(active.type);
+              const takesIt = textOnly
+                ? ['text', 'search', 'tel', 'url', 'email', 'password'].includes(active.type)
+                : !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image', 'range', 'color'].includes(active.type);
+              return !active.disabled && !active.readOnly && takesIt;
             }
             if (active instanceof HTMLTextAreaElement) return !active.disabled && !active.readOnly;
             if (active instanceof HTMLSelectElement || active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement ||
                 active instanceof HTMLIFrameElement || active instanceof HTMLFrameElement) {
               return false;
             }
-            return true;
-          }, CLOSED_SHADOW_ROOTS_KEY)
+            return !textOnly || (active instanceof HTMLElement && active.isContentEditable);
+          }, { key: CLOSED_SHADOW_ROOTS_KEY, textOnly: inserted !== undefined })
           .catch(() => false),
       ),
     );
     if (!editable.some(Boolean)) {
+      if (inserted !== undefined) throw notInsertable(inserted);
       throw new EngineError(
         'NOT_ACTIONABLE',
         'nothing that takes keystrokes has focus: the typed text would reach no field. Tap the field first, or type into a listed input by id.',
@@ -1500,6 +1530,21 @@ export class PlaywrightSurface {
       throw cause;
     }
   }
+}
+
+/** Runs in the page: whether an element is the focused one of its document or shadow tree. */
+function holdsFocus(element: Element): boolean {
+  const root = element.getRootNode();
+  return (root instanceof Document || root instanceof ShadowRoot) && root.activeElement === element;
+}
+
+/** The refusal of a `press` character that can only be inserted as text, where no text field would take it. */
+function notInsertable(character: string): EngineError {
+  return new EngineError(
+    'NOT_ACTIONABLE',
+    `press cannot type "${character}" here: Playwright's keyboard has no key for that character, so it is inserted as text with no key event, and only a focused, editable text field takes it`,
+    { retryable: false },
+  );
 }
 
 /** The snapshot with the attempt's tabs, when more than one is open; the snapshot as is otherwise. */
