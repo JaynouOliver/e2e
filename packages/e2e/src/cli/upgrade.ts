@@ -15,7 +15,7 @@ import path from 'node:path';
 import picocolors from 'picocolors';
 import { z } from 'zod';
 import { installedPackage } from '../internal/installed-package.ts';
-import { detectWorkspacePackageManager, execCommand, LOCKFILE_NAMES, type PackageManager } from '../internal/package-manager.ts';
+import { detectWorkspacePackageManager, execCommand, installArgs, LOCKFILE_NAMES, type PackageManager } from '../internal/package-manager.ts';
 import { isCiMode } from '@e2e-dev/core/lib/config/resolve';
 import { insideProjectRoot, realpathOfExisting } from '@e2e-dev/core/lib/internal/paths';
 import { DEPENDENCY_SECTIONS, RUNNER } from '../internal/project-package.ts';
@@ -490,14 +490,6 @@ function withRequests(manifest: Manifest, entries: readonly Planned[]): Manifest
     return [[section, { ...block, ...Object.fromEntries(moved) }] as const];
   });
   return { ...manifest, ...Object.fromEntries(sections) };
-}
-
-/**
- * The install that resolves the edited package.json. pnpm would refuse the
- * changed specs under a frozen lockfile, its default in CI.
- */
-function installArgs(manager: PackageManager): string[] {
-  return manager === 'pnpm' ? ['install', '--no-frozen-lockfile'] : ['install'];
 }
 
 function spawnInstall(command: string, args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): SpawnOutcome {

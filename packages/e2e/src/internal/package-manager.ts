@@ -166,6 +166,14 @@ function includesPackage(globs: readonly string[], relative: string): boolean {
   );
 }
 
+/**
+ * The install that resolves an edited package.json. pnpm would refuse the
+ * changed specs under a frozen lockfile, its default in CI.
+ */
+export function installArgs(manager: PackageManager): string[] {
+  return manager === 'pnpm' ? ['install', '--no-frozen-lockfile'] : ['install'];
+}
+
 /** The command that runs the package.json script `name` with the given manager. */
 export function runScriptCommand(manager: PackageManager, name: string): string {
   switch (manager) {
