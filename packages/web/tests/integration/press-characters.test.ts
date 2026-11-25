@@ -23,6 +23,8 @@ const PAGE = `<!doctype html><meta charset="utf-8">
 <script>
   document.addEventListener('keydown', (event) => {
     document.querySelector('[data-testid=keys]').value += (event.ctrlKey ? 'Control+' : '') + event.key + ';';
+    // F8 keeps the renderer busy for a while, so a read sent meanwhile answers late.
+    if (event.key === 'F8') setTimeout(() => { const end = Date.now() + 1500; while (Date.now() < end) {} }, 0);
   });
 </script>`;
 
@@ -94,6 +96,16 @@ describe('press with a character off the US keyboard layout', () => {
     await engine.observe!(op);
     await engine.keyboard!.press('é', op);
     expect(await valueOf(OPEN)).toBe('aé');
+  });
+
+  it('does not type the character once the press has timed out', async () => {
+    await press(OPEN, 'a');
+    await engine.observe!(op);
+    await engine.keyboard!.press('F8', op);
+    await expect(engine.keyboard!.press('é', { ...op, timeoutMs: 400 })).rejects.toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    await engine.observe!(op);
+    expect(await valueOf(OPEN)).toBe('a');
   });
 
   it('still presses a US-layout character with a modifier held', async () => {

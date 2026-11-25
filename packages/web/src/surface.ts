@@ -1201,7 +1201,7 @@ export class PlaywrightSurface {
                 ? await target.locator.evaluate(holdsFocus, undefined, { timeout: currentOperation.timeoutMs })
                 : await target.element.evaluate(holdsFocus);
               if (!focused) throw notInsertable(text);
-              await this.insertCharacter(page, text);
+              await this.insertCharacter(page, text, currentOperation.signal);
             }
           } catch (cause) {
             // The input went out and its own tab closed: closing was what it did.
@@ -1254,21 +1254,23 @@ export class PlaywrightSurface {
 
   /** Sends one key to whatever holds focus, in the contract's key grammar Playwright shares. */
   pressKey(key: string, operation: OperationContext): Promise<void> {
-    return this.acted(operation, this.guard(operation, 'keyboard.press', () => {
+    return this.acted(operation, this.guard(operation, 'keyboard.press', (currentOperation) => {
       this.requireSession().requireObservation();
       const text = insertedCharacter(key);
       const page = this.requirePage();
-      return text === undefined ? page.keyboard.press(key) : this.insertCharacter(page, text);
+      return text === undefined ? page.keyboard.press(key) : this.insertCharacter(page, text, currentOperation.signal);
     }, classifyInputError));
   }
 
   /**
    * Inserts a `press` character Playwright has no key for. Inserted text
    * sends no key event, so only a text field takes it: any other focus is
-   * refused rather than "pressed" into nothing.
+   * refused rather than "pressed" into nothing. The focus read can outlast
+   * the operation, and a press that timed out must not type afterwards.
    */
-  private async insertCharacter(page: Page, text: string): Promise<void> {
+  private async insertCharacter(page: Page, text: string, signal: AbortSignal): Promise<void> {
     await this.requireEditableFocus(page, text);
+    signal.throwIfAborted();
     await page.keyboard.insertText(text);
   }
 

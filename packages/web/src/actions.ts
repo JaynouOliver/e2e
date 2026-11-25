@@ -28,9 +28,9 @@ const DEFAULT_LONG_PRESS_MS = 500;
 const US_LAYOUT_CHARACTER = /^[ -~]$/;
 
 /**
- * The character of a `press` key that Playwright inserts as text because its
- * US keyboard layout has no key for it (`é`, `€`, `中`); `undefined` for a
- * key Playwright presses. Inserted text has no key event for a modifier to
+ * The character of a `press` key that the web engine inserts as text, because
+ * Playwright's US keyboard layout has no key for it (`é`, `€`, `中`);
+ * `undefined` for a key Playwright presses. Inserted text has no key event for a modifier to
  * hold over, so such a character with modifiers is refused.
  */
 export function insertedCharacter(key: string): string | undefined {
