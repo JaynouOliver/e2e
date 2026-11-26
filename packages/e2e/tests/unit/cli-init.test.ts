@@ -921,12 +921,30 @@ describe('e2e init', () => {
     writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'web', type: 'module' }));
     expect((await init(project, { yes: true, install: true })).exitCode).toBe(0);
     expect(vi.mocked(spawnSync).mock.calls.map(([command, args]) => [command, args])).toEqual([[manager, ['--version']], [manager, install]]);
-    expect(spawnSync).toHaveBeenNthCalledWith(1, manager, ['--version'], { cwd: project, stdio: 'ignore', shell: process.platform === 'win32' });
+    expect(spawnSync).toHaveBeenNthCalledWith(1, manager, ['--version'], { cwd: dir, stdio: 'ignore', shell: process.platform === 'win32' });
     expect(spawnSync).toHaveBeenLastCalledWith(manager, install, {
       cwd: project, env: expect.objectContaining({ YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' }), stdio: 'inherit', shell: process.platform === 'win32',
     });
     expect(output()).toContain(`${manager} test:e2e`);
     expect(output()).not.toContain('was not found');
+  });
+
+  it.each([
+    ['one level down', 'apps/*', ['apps', 'new']],
+    ['two levels down', 'apps/**', ['apps', 'a', 'b']],
+  ] as const)('finds the workspace manager from the workspace root for a member folder %s that does not exist yet', async (_case, glob, segments) => {
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ private: true, packageManager: 'pnpm@10.0.0' }));
+    writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), `packages: ['${glob}']\n`);
+    const project = path.join(dir, ...segments);
+    vi.mocked(spawnSync).mockImplementationOnce((_command, _args, options) => {
+      expect(existsSync(project)).toBe(false);
+      return existsSync(String(options?.cwd)) ? spawnResult(0) : { ...spawnResult(null), error: new Error('spawnSync pnpm ENOENT') };
+    });
+    expect((await init(project, { yes: true })).exitCode).toBe(0);
+    expect(spawnSync).toHaveBeenCalledExactlyOnceWith('pnpm', ['--version'], expect.objectContaining({ cwd: dir }));
+    expect(output()).toContain('pnpm test:e2e');
+    expect(output()).not.toContain('was not found');
+    expect(existsSync(path.join(project, 'package.json'))).toBe(true);
   });
 
   it.each([
