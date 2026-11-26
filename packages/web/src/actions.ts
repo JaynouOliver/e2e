@@ -1,7 +1,7 @@
 /** Locator action dispatch for the Playwright engine. */
 
 import type { ElementHandle, Page } from 'playwright-core';
-import { Deadline, EngineError, parseKey, pollCondition, TestError, type KeyModifier, type LocatorAction, type NodeRef, type PointerAction, type ViewportPoint } from '@e2e-dev/core/engine';
+import { Deadline, EngineError, pollCondition, TestError, type KeyModifier, type LocatorAction, type NodeRef, type PointerAction, type ViewportPoint } from '@e2e-dev/core/engine';
 import {
   asActionable,
   isClassified,
@@ -24,27 +24,6 @@ import type { ConnectionBudget } from './operation-budget.ts';
 
 /** How long a long press holds the button when the action names no duration. */
 const DEFAULT_LONG_PRESS_MS = 500;
-
-const US_LAYOUT_CHARACTER = /^[ -~]$/;
-
-/**
- * The character of a `press` key that the web engine inserts as text, because
- * Playwright's US keyboard layout has no key for it (`é`, `€`, `中`);
- * `undefined` for a key Playwright presses. Inserted text has no key event for a modifier to
- * hold over, so such a character with modifiers is refused.
- */
-export function insertedCharacter(key: string): string | undefined {
-  const parsed = parseKey(key);
-  if (parsed?.key.kind !== 'char' || US_LAYOUT_CHARACTER.test(parsed.key.char)) return undefined;
-  if (parsed.modifiers.length > 0) {
-    throw new EngineError(
-      'UNSUPPORTED_CAPABILITY',
-      `press cannot hold ${parsed.modifiers.join('+')} with "${parsed.key.char}": Playwright's keyboard has no key for that character; press it alone to type it`,
-      { retryable: false },
-    );
-  }
-  return parsed.key.char;
-}
 
 /** The keys a click holds, as Playwright's `modifiers` takes them; the contract spells them the same. */
 function heldKeys(action: Extract<LocatorAction, { kind: 'tap' | 'doubleTap' | 'secondaryTap' | 'multiTap' }>): { modifiers?: KeyModifier[] } {
@@ -334,8 +313,7 @@ export async function dispatchLocatorAction(
       return;
     case 'press':
       // Playwright spells keys as the contract grammar does; the harness has
-      // already refused anything outside it, and the surface inserts the
-      // characters Playwright has no key for, so the key is pressed as given.
+      // already refused anything outside it, so the key is pressed as given.
       await locator.press(action.key, { timeout });
       return;
     case 'check':

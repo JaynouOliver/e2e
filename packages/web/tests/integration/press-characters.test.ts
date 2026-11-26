@@ -13,10 +13,17 @@ const PAGE = `<!doctype html><meta charset="utf-8">
 <label>Name <input></label>
 <input data-testid="keys" readonly>
 <input data-testid="locked" readonly>
+<textarea data-testid="memo" readonly></textarea>
 <input data-testid="count" type="number">
 <label>Off <input disabled></label>
+<textarea data-testid="shut" disabled></textarea>
 <div data-testid="plain">plain</div>
 <div data-testid="rich" contenteditable="true"></div>
+<div data-testid="host" contenteditable="true">
+  <button data-testid="inner">In</button>
+  <select data-testid="inner-pick"><option>one</option></select>
+  <a data-testid="inner-link" href="#" tabindex="0">link</a>
+</div>
 <select data-testid="pick"><option>apple</option><option>éclair</option></select>
 <button data-testid="go">Go</button>
 <div data-testid="widget" tabindex="0">widget</div>
@@ -30,6 +37,11 @@ const by = (kind: 'testId' | 'label', value: string): LocatorExpression => ({ ki
 const OPEN = by('testId', 'open');
 /** A label query pins an element handle, where a test id keeps a locator: the two targets `press` acts on. */
 const LABELLED = by('label', 'Name');
+const GO = by('testId', 'go');
+const BODY: LocatorExpression = { kind: 'selector', selector: 'body' };
+const inFrame = (selector: string, source: LocatorExpression): LocatorExpression => ({ kind: 'frame', selector, source });
+const FRAMED_BODY = inFrame('iframe', BODY);
+const EDITOR_FRAME = '<iframe srcdoc="<body contenteditable></body>"></iframe>';
 
 describe('press with a character off the US keyboard layout', () => {
   const engine = web();
@@ -49,9 +61,10 @@ describe('press with a character off the US keyboard layout', () => {
     await engine.startAttempt!({ attemptId: 'press-1', artifactsDir, signal, resolveSecret: noSecrets, ...ignoreTrace });
   });
 
-  beforeEach(async () => {
-    await engine.session!.open!(`data:text/html;charset=utf-8,${encodeURIComponent(PAGE)}`, op);
-  });
+  const open = (html: string) => engine.session!.open!(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`, op);
+  const textOf = async (expression: LocatorExpression) => (await engine.locate!(expression, op))[0]?.text ?? '';
+
+  beforeEach(() => open(PAGE));
 
   afterAll(async () => {
     await engine.endAttempt!(cleanup);
@@ -70,15 +83,51 @@ describe('press with a character off the US keyboard layout', () => {
     expect(rich).toMatchObject({ text: 'é' });
   });
 
-  it.each(['pick', 'go', 'widget', 'locked', 'count'])('refuses a character it can only insert on %s, which takes no text', async (testId) => {
+  it.each([
+    ['a contenteditable body', '<body contenteditable></body>', BODY],
+    ['a contenteditable body in an iframe', EDITOR_FRAME, FRAMED_BODY],
+    ['a designMode document in an iframe', `<iframe srcdoc="<body></body>" onload="this.contentDocument.designMode = 'on'"></iframe>`, FRAMED_BODY],
+  ])('types the character into %s, by node and by focus', async (_host, html, body) => {
+    await open(html);
+    await press(body, 'é');
+    await engine.observe!(op);
+    await engine.keyboard!.press('ß', op);
+    expect(await textOf(body)).toBe('éß');
+  });
+
+  it('refuses the character on a button while an editable frame body is without focus', async () => {
+    await open(`<button data-testid="go">Go</button>${EDITOR_FRAME}`);
+    await expect(press(GO, 'é')).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
+    await engine.observe!(op);
+    await expect(engine.keyboard!.press('é', op)).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
+    expect(await textOf(FRAMED_BODY)).toBe('');
+  });
+
+  it.each([
+    ['an iframe in an editing host', `<div contenteditable><iframe srcdoc="<button data-testid='go'>Go</button>"></iframe></div>`, inFrame('iframe', GO)],
+    [
+      'a frame of a designMode frameset',
+      `<iframe srcdoc="<frameset><frame src='data:text/html,<button data-testid=go>Go</button>'></frameset>" onload="this.contentDocument.designMode = 'on'"></iframe>`,
+      inFrame('iframe', inFrame('frame', GO)),
+    ],
+  ])('refuses the character on a button inside %s', async (_frame, html, button) => {
+    await open(html);
+    await expect(press(button, 'é')).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
+    await engine.observe!(op);
+    await expect(engine.keyboard!.press('é', op)).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
+  });
+
+  it.each(['pick', 'go', 'widget', 'locked', 'memo', 'inner', 'inner-pick', 'inner-link', 'count'])('refuses a character it can only insert on %s, which takes no text', async (testId) => {
     await expect(press(by('testId', testId), 'é')).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
     await engine.observe!(op);
     await expect(engine.keyboard!.press('é', op)).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
     expect(await valueOf(by('testId', 'pick'))).toBe('apple');
     expect(await valueOf(by('testId', 'locked'))).toBe('');
+    expect(await valueOf(by('testId', 'memo'))).toBe('');
+    expect(await textOf(by('testId', 'host'))).not.toContain('é');
   });
 
-  it.each([['a locator', by('testId', 'plain')], ['an element handle', by('label', 'Off')]])('refuses the character on a node that takes no focus, addressed by %s, and leaves the focused field alone', async (_target, node) => {
+  it.each([['a locator', by('testId', 'plain')], ['a locator of a disabled textarea', by('testId', 'shut')], ['an element handle', by('label', 'Off')]])('refuses the character on a node that takes no focus, addressed by %s, and leaves the focused field alone', async (_target, node) => {
     await press(OPEN, 'a');
     await expect(press(node, 'é')).rejects.toMatchObject({ code: 'NOT_ACTIONABLE' });
     expect(await valueOf(OPEN)).toBe('a');
