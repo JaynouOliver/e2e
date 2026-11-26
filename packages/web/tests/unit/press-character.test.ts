@@ -64,6 +64,12 @@ describe('the input of a character press', () => {
     expect(calls.slice(-3)).toEqual(['up Alt', 'up Control', 'detach']);
   });
 
+  it('fails when a modifier cannot be released, after releasing the rest', async () => {
+    const { calls, page, checkpoint } = fakePage('up Alt');
+    await expect(pressCharacter(page, { character: 'é', modifiers: ['Control', 'Alt'] }, checkpoint)).rejects.toThrow('up Alt failed');
+    expect(calls.slice(-3)).toEqual(['up Alt', 'up Control', 'detach']);
+  });
+
   it.each([
     ['the focused element', (page: Page, checkpoint: () => void) => pressCharacter(page, { character: 'é', modifiers: ['Control'] }, checkpoint)],
     ['a node', (page: Page, checkpoint: () => void) => pressCharacterOn({ kind: 'locator', locator: { focus: async () => undefined } as unknown as PwLocator }, page, { character: 'é', modifiers: ['Control'] }, { timeoutMs: 7, signal: new AbortController().signal }, checkpoint)],

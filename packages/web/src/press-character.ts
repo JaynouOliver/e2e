@@ -59,20 +59,33 @@ export async function pressCharacter(page: Page, press: CharacterPress, checkpoi
   const held: KeyModifier[] = [];
   try {
     checkpoint();
-    // Playwright holds the modifiers, so its own record of what is down stays true.
-    for (const modifier of press.modifiers) {
-      await page.keyboard.down(modifier);
-      held.push(modifier);
+    try {
+      // Playwright holds the modifiers, so its own record of what is down stays true.
+      for (const modifier of press.modifiers) {
+        await page.keyboard.down(modifier);
+        held.push(modifier);
+      }
+      const modifiers = press.modifiers.reduce((bits, modifier) => bits | MODIFIER_BITS[resolveModifier(modifier)], 0);
+      // As for a US key, a modifier other than Shift makes the key a shortcut that types nothing.
+      const text = press.modifiers.every((modifier) => modifier === 'Shift') ? { text: character, unmodifiedText: character } : {};
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: character, modifiers, ...text });
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: character, modifiers });
+    } catch (cause) {
+      // The key's own failure is the one to report.
+      await release(page, held).catch(() => undefined);
+      throw cause;
     }
-    const modifiers = press.modifiers.reduce((bits, modifier) => bits | MODIFIER_BITS[resolveModifier(modifier)], 0);
-    // As for a US key, a modifier other than Shift makes the key a shortcut that types nothing.
-    const text = press.modifiers.every((modifier) => modifier === 'Shift') ? { text: character, unmodifiedText: character } : {};
-    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: character, modifiers, ...text });
-    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: character, modifiers });
+    await release(page, held);
   } finally {
-    for (const modifier of held.toReversed()) await page.keyboard.up(modifier).catch(() => undefined);
     await cdp.detach().catch(() => undefined);
   }
+}
+
+/** Releases every held modifier, last first, then throws the first failure: a modifier that may still be down is not a finished press. */
+async function release(page: Page, held: readonly KeyModifier[]): Promise<void> {
+  const failures: unknown[] = [];
+  for (const modifier of held.toReversed()) await page.keyboard.up(modifier).catch((cause: unknown) => { failures.push(cause); });
+  if (failures.length > 0) throw failures[0];
 }
 
 /** `ControlOrMeta` as Playwright resolves it: by the platform of the process driving the browser. */
