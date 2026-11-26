@@ -167,11 +167,15 @@ function includesPackage(globs: readonly string[], relative: string): boolean {
 }
 
 /**
- * The install that resolves an edited package.json. pnpm would refuse the
- * changed specs under a frozen lockfile, its default in CI.
+ * The install that resolves an edited package.json: its arguments, and the
+ * variables to add to its environment. The lockfile changes with the new
+ * specs, which pnpm and Yarn refuse in CI unless told otherwise.
  */
-export function installArgs(manager: PackageManager): string[] {
-  return manager === 'pnpm' ? ['install', '--no-frozen-lockfile'] : ['install'];
+export function installCommand(manager: PackageManager): { args: string[]; env: NodeJS.ProcessEnv } {
+  return {
+    args: manager === 'pnpm' ? ['install', '--no-frozen-lockfile'] : ['install'],
+    env: { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' },
+  };
 }
 
 /** The command that runs the package.json script `name` with the given manager. */

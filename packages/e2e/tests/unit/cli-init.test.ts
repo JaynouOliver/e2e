@@ -921,7 +921,10 @@ describe('e2e init', () => {
     writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'web', type: 'module' }));
     expect((await init(project, { yes: true, install: true })).exitCode).toBe(0);
     expect(vi.mocked(spawnSync).mock.calls.map(([command, args]) => [command, args])).toEqual([[manager, ['--version']], [manager, install]]);
-    expect(spawnSync).toHaveBeenLastCalledWith(manager, install, expect.objectContaining({ cwd: project }));
+    expect(spawnSync).toHaveBeenNthCalledWith(1, manager, ['--version'], { cwd: project, stdio: 'ignore', shell: process.platform === 'win32' });
+    expect(spawnSync).toHaveBeenLastCalledWith(manager, install, {
+      cwd: project, env: expect.objectContaining({ YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' }), stdio: 'inherit', shell: process.platform === 'win32',
+    });
     expect(output()).toContain(`${manager} test:e2e`);
     expect(output()).not.toContain('was not found');
   });

@@ -10,7 +10,7 @@ import {
   detectPackageManager,
   detectWorkspacePackageManager,
   execCommand,
-  installArgs,
+  installCommand,
   readPackageManifest,
   runScriptCommand,
   type PackageManager,
@@ -378,7 +378,7 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
   // A workspace member takes its workspace root's manager when this machine has it, and is treated as a standalone project otherwise.
   const own = detectPackageManager(cwd, pkg.manifest.packageManager);
   const workspace = detectWorkspacePackageManager(cwd).manager;
-  const manager = workspace === own || isInstalled(workspace) ? workspace : own;
+  const manager = workspace === own || isInstalled(workspace, cwd) ? workspace : own;
   if (manager !== workspace) clack.log.warn(`This workspace uses ${workspace}, which was not found on this machine; continuing with ${manager}`);
   let mcpRegistrations: ReturnType<typeof planMcpRegistration>['registrations'];
   try {
@@ -559,11 +559,9 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
       clack.log.info(`${CACHE_IGNORE_ENTRY} is ignored; committing agent.act replays is opt-in, see ${DOCS_URL}/cache#commit-the-replay-cache`);
     }
   }
-  // The lockfile changes with the new dependencies, which pnpm and Yarn refuse in CI unless told otherwise.
+  const { args: installArgs, env: installEnv } = installCommand(manager);
   const installed = install
-    ? spawnSync(manager, installArgs(manager), {
-        cwd, env: { ...process.env, YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' }, stdio: 'inherit', shell: process.platform === 'win32',
-      })
+    ? spawnSync(manager, installArgs, { cwd, env: { ...process.env, ...installEnv }, stdio: 'inherit', shell: process.platform === 'win32' })
     : undefined;
   // After the install, so an existing config's engines load; the user's config runs only once they agreed to the changes.
   if (writesCi) {
@@ -812,9 +810,9 @@ function servedBuild(manifest: FrameworkManifest, config: string): string | unde
   return scripts !== undefined && configRunsScript(config, scripts.start) ? scripts.build : undefined;
 }
 
-/** Whether `manager` runs on this machine. */
-function isInstalled(manager: PackageManager): boolean {
-  return spawnSync(manager, ['--version'], { stdio: 'ignore', shell: process.platform === 'win32' }).status === 0;
+/** Whether `manager` runs in `cwd`, where a Corepack shim picks the project's version. */
+function isInstalled(manager: PackageManager, cwd: string): boolean {
+  return spawnSync(manager, ['--version'], { cwd, stdio: 'ignore', shell: process.platform === 'win32' }).status === 0;
 }
 
 /** The major version of the pnpm on this machine, for `pnpm/action-setup`; `latest` when it cannot be read. */
