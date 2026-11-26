@@ -49,7 +49,7 @@ import { matchesText } from '@e2e-dev/core/engine';
 import { classifyActionError, classifyInputError, dispatchLocatorAction, dispatchPointerAction } from './actions.ts';
 import { BrowserConnection, connectCdp, defaultChromiumSandbox, isBrowserName, type BrowserLaunchOptions, type BrowserName } from './browser-connection.ts';
 import { grantedPermissions, grantPermissions } from './permissions.ts';
-import { insertCharacter, insertCharacterInto, requireInsertableCharacter } from './press-text.ts';
+import { pressCharacter, pressCharacterOn, requireCharacterPress } from './press-character.ts';
 import { AttemptSession, type AttemptTab, type StorageState } from './attempt-session.ts';
 import type { CdpEndpointResolver } from './cdp-recovery.ts';
 import { webmcpLaunch } from './webmcp.ts';
@@ -1271,12 +1271,12 @@ export class PlaywrightSurface {
         }
         const session = this.requireSession();
         const { refs } = session;
-        const text = action.kind === 'press' ? requireInsertableCharacter(action.key) : undefined;
+        const character = action.kind === 'press' ? requireCharacterPress(action.key, this.browserName) : undefined;
         return refs.lookup(ref).then(async (target) => {
           currentOperation.signal.throwIfAborted();
           try {
-            if (text === undefined) await dispatchLocatorAction(target, action, currentOperation, (other) => refs.lookup(other));
-            else await insertCharacterInto(target, page, text, currentOperation, session.checkpoint(currentOperation.signal, action.kind));
+            if (character === undefined) await dispatchLocatorAction(target, action, currentOperation, (other) => refs.lookup(other));
+            else await pressCharacterOn(target, page, character, currentOperation, session.checkpoint(currentOperation.signal, action.kind));
           } catch (cause) {
             // The input went out and its own tab closed: closing was what it did.
             if (dispatchedInput(cause) && session.tabClosed(page)) return;
@@ -1326,9 +1326,9 @@ export class PlaywrightSurface {
     return this.acted(operation, this.guard(operation, 'keyboard.press', (currentOperation) => {
       const session = this.requireSession();
       session.requireObservation();
-      const text = requireInsertableCharacter(key);
+      const character = requireCharacterPress(key, this.browserName);
       const page = this.requirePage();
-      return text === undefined ? page.keyboard.press(key) : insertCharacter(page, text, session.checkpoint(currentOperation.signal, 'keyboard.press'));
+      return character === undefined ? page.keyboard.press(key) : pressCharacter(page, character, session.checkpoint(currentOperation.signal, 'keyboard.press'));
     }, classifyInputError));
   }
 

@@ -123,7 +123,7 @@ test.describe('locator misc 2', { platforms: ['web'], tags: ['playwright'] }, ()
   });
 
   // Playwright throws on 'ё' and '😊' too. The e2e key grammar takes any single
-  // character, so the web engine inserts the ones Playwright has no key for.
+  // character, so in Chromium the web engine presses the ones Playwright has no key for.
   test('press should throw on unknown keys and type characters off the US layout', async ({ screen, browser }) => {
     await browser.goto(content(`<input type='text' />`));
     const locator = screen.getByRole('textbox');
